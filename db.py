@@ -44,7 +44,7 @@ def _payload_from_jsonl_row(row: dict) -> Tuple[dict, str, str]:
         content_type=(row.get("video_type", "") or "talking_style").lower(),
         tone=tone,
         title=external_id or row.get("theme", "") or "Imported Script",
-        hook=row.get("video_hook", ""),
+        hook=row.get("video_hook") or "",
 
         # structured fields
         beats=row.get("storyboard", []) or [],

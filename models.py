@@ -51,3 +51,53 @@ class Rating(SQLModel, table=True):
     safety: Optional[float] = None
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# RAG Enhancement Models
+class Embedding(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    script_id: int = Field(index=True)
+    part: str = Field(index=True)  # 'full', 'hook', 'beats', 'caption'
+    vector: List[float] = Field(sa_column=Column(JSON))
+    meta: dict = Field(sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AutoScore(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    script_id: int = Field(index=True)
+    overall: float
+    hook: float
+    originality: float
+    style_fit: float
+    safety: float
+    confidence: float = 0.8  # LLM judge confidence
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PolicyWeights(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    persona: str = Field(index=True)
+    content_type: str = Field(index=True)
+    # Retrieval weights
+    semantic_weight: float = 0.45
+    bm25_weight: float = 0.25
+    quality_weight: float = 0.20
+    freshness_weight: float = 0.10
+    # Generation params
+    temp_low: float = 0.4
+    temp_mid: float = 0.7
+    temp_high: float = 0.95
+    # Performance tracking
+    success_rate: float = 0.0
+    total_generations: int = 0
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class StyleCard(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    persona: str = Field(index=True)
+    content_type: str = Field(index=True)
+    exemplar_hooks: List[str] = Field(sa_column=Column(JSON))
+    exemplar_beats: List[str] = Field(sa_column=Column(JSON))
+    exemplar_captions: List[str] = Field(sa_column=Column(JSON))
+    negative_patterns: List[str] = Field(sa_column=Column(JSON))
+    constraints: dict = Field(sa_column=Column(JSON))
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

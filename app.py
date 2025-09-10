@@ -4,8 +4,16 @@ from sqlmodel import select
 from db import init_db, get_session, add_rating
 from models import Script, Revision
 from deepseek_client import generate_scripts, revise_for, selective_rewrite
+from rag_integration import generate_scripts_rag
 from compliance import blob_from, score_script
 import time
+
+# Configure page - MUST be first Streamlit command
+st.set_page_config(
+    page_title="🎬 AI Script Studio", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 def script_to_json_dict(script):
     """Convert script to JSON-serializable dictionary"""
@@ -21,6 +29,20 @@ init_db()
 
 # Check for API key in Streamlit secrets or environment
 api_key = st.secrets.get("DEEPSEEK_API_KEY") if hasattr(st, 'secrets') and "DEEPSEEK_API_KEY" in st.secrets else os.getenv("DEEPSEEK_API_KEY")
+
+# DEBUG INFO - remove after fixing
+if hasattr(st, 'secrets'):
+    st.sidebar.write("🔍 DEBUG: Secrets available")
+    if "DEEPSEEK_API_KEY" in st.secrets:
+        st.sidebar.write("✅ DEEPSEEK_API_KEY found in secrets")
+        st.sidebar.write(f"🔑 Key length: {len(st.secrets['DEEPSEEK_API_KEY'])}")
+        st.sidebar.write(f"🔑 Key starts with: {st.secrets['DEEPSEEK_API_KEY'][:10]}...")
+    else:
+        st.sidebar.write("❌ DEEPSEEK_API_KEY NOT in secrets")
+        st.sidebar.write(f"Available secrets: {list(st.secrets.keys())}")
+else:
+    st.sidebar.write("❌ No secrets available")
+
 if not api_key:
     st.error("🔑 **DeepSeek API Key Required**")
     st.markdown("""
@@ -34,13 +56,9 @@ if not api_key:
     Get your free API key at: https://platform.deepseek.com/api_keys
     """)
     st.stop()
+else:
+    st.sidebar.write("✅ API key loaded successfully")
 
-# Configure page
-st.set_page_config(
-    page_title="🎬 AI Script Studio", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Custom CSS for better styling
 st.markdown("""
@@ -314,8 +332,12 @@ with st.sidebar:
                 progress_bar.progress(25)
                 time.sleep(0.5)
                 
-                status_text.text("✨ Generating creative content...")
-                progress_bar.progress(50)
+                status_text.text("🧠 RAG system selecting optimal references...")
+                progress_bar.progress(40)
+                time.sleep(0.3)
+                
+                status_text.text("✨ Generating enhanced content with AI learning...")
+                progress_bar.progress(60)
                 
                 # Build enhanced prompt from advanced options
                 advanced_prompt = ""
@@ -338,8 +360,8 @@ with st.sidebar:
                 if advanced_prompt:
                     enhanced_boundaries += f"\n\nADVANCED GUIDANCE: {advanced_prompt}"
                 
-                # Generate scripts
-                drafts = generate_scripts(persona, enhanced_boundaries, content_type, tone, all_refs, n=n)
+                # Generate scripts with enhanced RAG system
+                drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, tone, all_refs, n=n)
                 
                 progress_bar.progress(75)
                 status_text.text("💾 Saving to database...")
@@ -522,7 +544,10 @@ with tab1:
                         beats_text = st.text_area("Beats (one per line)", value="\n".join(current.beats or []), height=120)
                         voiceover = st.text_area("Voiceover", value=current.voiceover or "", height=80)
                         caption = st.text_area("Caption", value=current.caption or "", height=100)
-                        hashtags = st.text_input("Hashtags (comma separated)", value=",".join(current.hashtags or []))
+                        # Clean up hashtags display - remove commas, show as space-separated 
+                        current_hashtags = current.hashtags or []
+                        hashtags_display = " ".join(current_hashtags) if current_hashtags else ""
+                        hashtags = st.text_input("Hashtags (space separated)", value=hashtags_display, help="Enter hashtags like: #gym #fitness #workout")
                         cta = st.text_input("Call to Action", value=current.cta or "")
                         
                         # Submit button
@@ -534,7 +559,8 @@ with tab1:
                                 dbs.beats = [x.strip() for x in beats_text.split("\n") if x.strip()]
                                 dbs.voiceover = voiceover
                                 dbs.caption = caption
-                                dbs.hashtags = [x.strip() for x in hashtags.split(",") if x.strip()]
+                                # Parse hashtags from space-separated input
+                                dbs.hashtags = [x.strip() for x in hashtags.split() if x.strip()]
                                 dbs.cta = cta
                                 
                                 # Update compliance
