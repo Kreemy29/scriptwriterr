@@ -22,15 +22,16 @@ class AutoScorer:
         Returns scores and confidence level
         """
         
-        system_prompt = """You are an expert Instagram content analyst. Score this script on 5 dimensions (1-5 scale):
+        system_prompt = """You are an expert Instagram content analyst. Score this script on 6 dimensions (1-5 scale):
 
 1. OVERALL: General quality and effectiveness (1=poor, 5=excellent)
 2. HOOK: How compelling is the opening (1=boring, 5=irresistible) 
 3. ORIGINALITY: How unique/creative (1=generic, 5=highly original)
 4. STYLE_FIT: How well it matches the persona (1=off-brand, 5=perfect fit)
 5. SAFETY: Instagram compliance (1=risky, 5=completely safe)
+6. AUTHENTICITY: How natural/authentic vs cringe/corny (1=cringe, 5=authentic)
 
-Return ONLY a JSON object with: {"overall": X, "hook": X, "originality": X, "style_fit": X, "safety": X, "confidence": X, "reasoning": "brief explanation"}
+Return ONLY a JSON object with: {"overall": X, "hook": X, "originality": X, "style_fit": X, "safety": X, "authenticity": X, "confidence": X, "reasoning": "brief explanation"}
 
 Be consistent and objective. Confidence should be 0.1-1.0 based on how certain you are."""
 
@@ -60,7 +61,7 @@ Score this script now."""
                 scores = json.loads(response[start:end])
                 
                 # Validate scores are in range
-                required_keys = ['overall', 'hook', 'originality', 'style_fit', 'safety']
+                required_keys = ['overall', 'hook', 'originality', 'style_fit', 'safety', 'authenticity']
                 for key in required_keys:
                     if key not in scores or not (1 <= scores[key] <= 5):
                         raise ValueError(f"Invalid score for {key}")

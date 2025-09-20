@@ -120,14 +120,8 @@ with st.sidebar:
     
     # Step 1: Basic Settings
     with st.expander("📝 Step 1: Basic Settings", expanded=True):
-        # Dynamic creator dropdown (pull from database + defaults)
-        with get_session() as ses:
-            db_creators = list(ses.exec(select(Script.creator).distinct()))
-            db_creator_names = [c for c in db_creators if c]
-        
-        default_creators = ["Creator A", "Emily", "Anya", "Ava Cherrry", "Ava Xreyess", "FitBryceAdams", "RealCarlyJane", "Sophie Rain", "Zoe AloneAtHome"]
-        all_creators = list(set(default_creators + db_creator_names))
-        creator_options = sorted(all_creators)
+        # Clean creator dropdown - only show our 4 main creators
+        creator_options = ["Emily Kent", "Marcie", "Mia", "General Content"]
         creator = st.selectbox(
             "Creator Name", 
             creator_options,

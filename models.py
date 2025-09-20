@@ -2,8 +2,20 @@ from datetime import datetime
 from typing import List, Optional
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
+from sqlalchemy import MetaData
+from sqlalchemy.orm import clear_mappers
 
-class Script(SQLModel, table=True):
+# Clear any existing metadata and mappers to prevent table redefinition errors
+try:
+    clear_mappers()
+    metadata = MetaData()
+    metadata.clear()
+except:
+    pass
+
+class Script(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "script"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     creator: str
     content_type: str
@@ -30,7 +42,9 @@ class Script(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-class Revision(SQLModel, table=True):
+class Revision(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "revision"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     script_id: int = Field(index=True)
     label: str
@@ -40,7 +54,9 @@ class Revision(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # NEW: store every rating event so you keep history
-class Rating(SQLModel, table=True):
+class Rating(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "rating"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     script_id: int = Field(index=True)
     rater: str = "human"   # optional: store user/email
@@ -53,7 +69,9 @@ class Rating(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # RAG Enhancement Models
-class Embedding(SQLModel, table=True):
+class Embedding(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "embedding"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     script_id: int = Field(index=True)
     part: str = Field(index=True)  # 'full', 'hook', 'beats', 'caption'
@@ -61,7 +79,9 @@ class Embedding(SQLModel, table=True):
     meta: dict = Field(sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class AutoScore(SQLModel, table=True):
+class AutoScore(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "autoscore"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     script_id: int = Field(index=True)
     overall: float
@@ -69,11 +89,14 @@ class AutoScore(SQLModel, table=True):
     originality: float
     style_fit: float
     safety: float
+    authenticity: float  # Anti-cringe score
     confidence: float = 0.8  # LLM judge confidence
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class PolicyWeights(SQLModel, table=True):
+class PolicyWeights(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "policyweights"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     persona: str = Field(index=True)
     content_type: str = Field(index=True)
@@ -91,7 +114,9 @@ class PolicyWeights(SQLModel, table=True):
     total_generations: int = 0
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-class StyleCard(SQLModel, table=True):
+class StyleCard(SQLModel, table=True, extend_existing=True):
+    __tablename__ = "stylecard"
+    __table_args__ = {'extend_existing': True}
     id: Optional[int] = Field(default=None, primary_key=True)
     persona: str = Field(index=True)
     content_type: str = Field(index=True)
@@ -100,4 +125,55 @@ class StyleCard(SQLModel, table=True):
     exemplar_captions: List[str] = Field(sa_column=Column(JSON))
     negative_patterns: List[str] = Field(sa_column=Column(JSON))
     constraints: dict = Field(sa_column=Column(JSON))
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+# NEW: Data Hierarchy Models
+class ModelProfile(SQLModel, table=True, extend_existing=True):
+    """Primary model data - specific creators like Marcie, Mia, Emily"""
+    __tablename__ = "modelprofile"
+    __table_args__ = {'extend_existing': True}
+    id: Optional[int] = Field(default=None, primary_key=True)
+    model_name: str = Field(index=True, unique=True)  # "Marcie", "Mia", "Emily"
+    niche: str  # "Girl-next-door", "Bratty tease", etc.
+    brand_description: str
+    instagram_handle: Optional[str] = None
+    content_style: str  # Description of their content style
+    voice_tone: str  # How they speak/talk
+    visual_style: str  # How they look/dress
+    target_audience: str
+    content_themes: List[str] = Field(sa_column=Column(JSON))  # ["fitness", "lifestyle", "comedy"]
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ContentTemplate(SQLModel, table=True, extend_existing=True):
+    """Secondary general content templates and examples"""
+    __tablename__ = "contenttemplate"
+    __table_args__ = {'extend_existing': True}
+    id: Optional[int] = Field(default=None, primary_key=True)
+    template_name: str = Field(index=True)
+    content_type: str = Field(index=True)
+    niche: str = Field(index=True)
+    template_data: dict = Field(sa_column=Column(JSON))  # Full template structure
+    usage_count: int = 0
+    success_rate: float = 0.0
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class DataHierarchy(SQLModel, table=True, extend_existing=True):
+    """Controls the data hierarchy and retrieval weights"""
+    __tablename__ = "datahierarchy"
+    __table_args__ = {'extend_existing': True}
+    id: Optional[int] = Field(default=None, primary_key=True)
+    niche: str = Field(index=True)
+    content_type: str = Field(index=True)
+    # Primary data weights (model-specific)
+    model_data_weight: float = 0.7  # 70% weight for model-specific data
+    # Secondary data weights (general content)
+    general_data_weight: float = 0.3  # 30% weight for general content
+    # Retrieval settings
+    max_model_examples: int = 8  # Max examples from model data
+    max_general_examples: int = 4  # Max examples from general data
+    is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.utcnow)

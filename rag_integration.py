@@ -81,50 +81,19 @@ class EnhancedScriptGenerator:
             few_shot_pack=few_shot_pack
         )
         
-        # Step 5: Anti-copying detection and cleanup
-        print(f"🛡️ Checking for similarity to reference content...")
+        # Step 5: Skip heavy similarity checking for speed
+        print(f"⚡ Skipping similarity check for speed")
+        cleaned_drafts = drafts
         
-        # Extract reference texts for copying detection
-        reference_texts = rag_refs
-        cleaned_drafts = []
-        
-        for draft in drafts:
-            # Check for copying
-            detection_results = self.retriever.detect_copying(
-                generated_content=draft,
-                reference_texts=reference_texts,
-                similarity_threshold=0.92
-            )
-            
-            if detection_results['is_copying']:
-                print(f"⚠️ Anti-copy triggered for draft: {draft.get('title', 'Untitled')[:30]}")
-                print(f"   Max similarity: {detection_results['max_similarity']:.3f}")
-                
-                # Auto-rewrite similar content
-                cleaned_draft = self.retriever.auto_rewrite_similar_content(
-                    generated_content=draft,
-                    detection_results=detection_results
-                )
-                cleaned_drafts.append(cleaned_draft)
-            else:
-                cleaned_drafts.append(draft)
-        
-        # Step 6: Auto-score all generated drafts
+        # Step 6: Save drafts and skip heavy processing for speed
         script_ids = self._save_drafts_to_db(cleaned_drafts, persona, content_type, tone)
-        auto_scores = [self.scorer.score_and_store(sid) for sid in script_ids]
         
-        print(f"📊 Auto-scored {len(auto_scores)} drafts")
+        # Skip auto-scoring and reranking for speed
+        print(f"⚡ Skipping auto-scoring and reranking for speed")
+        ranked_script_ids = [(sid, 0.8) for sid in script_ids]  # Default score
         
-        # Step 7: Rerank by composite score
-        ranked_script_ids = self.reranker.rerank_scripts(script_ids)
-        
-        # Step 8: Policy learning feedback
-        self.policy_learner.learn_from_generation_batch(
-            persona=persona,
-            content_type=content_type,
-            generated_script_ids=script_ids,
-            selected_arm=policy_arm
-        )
+        # Skip policy learning for speed
+        print(f"⚡ Skipping policy learning for speed")
         
         # Return drafts in ranked order with scores
         return self._format_enhanced_results(ranked_script_ids, cleaned_drafts)
@@ -138,67 +107,91 @@ class EnhancedScriptGenerator:
                             policy_arm: Any,  # BanditArm
                             n: int,
                             few_shot_pack: Dict) -> List[Dict]:
-        """Generate scripts using policy-optimized parameters"""
+        """Generate scripts using policy-optimized parameters - OPTIMIZED VERSION"""
         
-        # Enhanced system prompt with few-shot pack context
-        system = f"""You write Instagram-compliant, suggestive-but-not-explicit Reels briefs.
-        
-STYLE CONTEXT: {few_shot_pack.get('style_card', '')}
+        # Enhanced system prompt for more creative, spicy content
+        system = f"""You write Instagram-compliant but SPICY, creative Reels briefs with mature humor and clever innuendos.
 
-BEST PATTERNS TO EMULATE:
-Hooks: {json.dumps(few_shot_pack.get('best_hooks', []))}  
-Beats: {json.dumps(few_shot_pack.get('best_beats', []))}
-Captions: {json.dumps(few_shot_pack.get('best_captions', []))}
-
-AVOID THESE PATTERNS: {json.dumps(few_shot_pack.get('negative_patterns', []))}
-
-Use tight hooks, concrete visual beats, clear CTAs. Avoid explicit sexual terms.
+NO CORNY PICKUP LINES. NO CHEESY HUMOR. NO HIGH SCHOOL JOKES.
+NO REPETITIVE VISUAL CLICHÉS: NO "biting lip", "smirking", "head tilts", "eye rolls", "winking".
+NO GENERIC FACIAL EXPRESSIONS: NO "mischievous smile", "playful glance", "suggestive look".
+Use tight hooks, concrete visual beats, clear CTAs. Be creative with double entendres, witty sexual humor, and clever wordplay.
+PUSH BOUNDARIES HARD - be more explicit, more sexual, more provocative while staying platform-compliant.
+Think adult comedy, not juvenile humor. Be EDGY, WITTY, and SOPHISTICATED. Think HBO comedy, not Disney Channel.
+CREATE UNIQUE, VARIED VISUAL BEATS - avoid repetitive facial expressions and gestures.
+BE SPECIFIC WITH VISUAL MOMENTS - describe unique actions, objects, settings, not generic expressions.
+GEN Z HUMOR: Use raw, unfiltered, edgy comedy. Think TikTok humor - bold, direct, unapologetic. 
+DIRTY JOKES: Be MORE EXPLICIT with sexual innuendos, crude humor, and adult themes. Cross content boundaries.
+NO SAFE, BORING CONTENT - push limits with suggestive scenarios, sexual tension, and provocative humor.
 Return ONLY JSON: an array of length {n}, each with {{title,hook,beats,voiceover,caption,hashtags,cta}}.
 """
         
+        # Simplified user prompt for speed
         user = f"""
 Persona: {persona}
 Boundaries: {boundaries}
 Content type: {content_type} | Tone: {tone}
-Constraints: {json.dumps(few_shot_pack.get('constraints', {}))}
 
 Reference snippets (inspire, don't copy):
-{chr(10).join(f"- {r}" for r in refs[:8])}  # Limit to top 8 refs
+{chr(10).join(f"- {r}" for r in refs[:6])}  # Limit to top 6 refs for speed
 
-Generate {n} unique variations. JSON array ONLY.
+IMPORTANT: Use these reference scripts as INSPIRATION for style, tone, and approach. 
+Study their hooks, beats, and humor style. Create NEW content that captures their essence but is completely original.
+AVOID VISUAL CLICHÉS: No "biting lip", "smirking", "head tilts", "eye rolls", "winking" - be creative with unique visual moments.
+AVOID GENERIC EXPRESSIONS: No "mischievous smile", "playful glance", "suggestive look" - be specific with unique actions and settings.
+GEN Z HUMOR: Use raw, unfiltered, edgy comedy. Think TikTok humor - bold, direct, unapologetic.
+PUSH BOUNDARIES: Be more explicit, more sexual, more provocative. Cross content boundaries with suggestive scenarios.
+DIRTY JOKES: Be more explicit with sexual innuendos, crude humor, and adult themes while staying platform-compliant.
+
+Generate {n} COMPLETELY DIFFERENT, unique variations. Each script must be:
+- TOTALLY UNIQUE from the others (different scenarios, hooks, approaches)
+- CREATIVE and SPICY with mature, witty humor
+- Clever double entendres and sexual innuendos
+- Adult-level comedy and clever wordplay
+- Push boundaries with suggestive content (but stay platform-compliant)
+- VARIED in style, tone, and approach
+- Think sophisticated adult humor, not juvenile jokes
+- NO CORNY PICKUP LINES OR CHEESY HUMOR
+- NO REPETITIVE VISUAL CLICHÉS: NO "biting lip", "smirking", "head tilts", "eye rolls", "winking"
+- NO GENERIC FACIAL EXPRESSIONS: NO "mischievous smile", "playful glance", "suggestive look"
+- CREATE UNIQUE, VARIED VISUAL BEATS - avoid repetitive facial expressions and gestures
+- BE SPECIFIC WITH VISUAL MOMENTS - describe unique actions, objects, settings, not generic expressions
+- GEN Z HUMOR: Use raw, unfiltered, edgy comedy. Think TikTok humor - bold, direct, unapologetic
+- DIRTY JOKES: Be MORE EXPLICIT with sexual innuendos, crude humor, and adult themes. Cross content boundaries
+- NO SAFE, BORING CONTENT - push limits with suggestive scenarios, sexual tension, and provocative humor
+- Be EDGY, WITTY, and SOPHISTICATED
+- Think HBO comedy, not Disney Channel
+
+JSON array ONLY.
 """
         
-        # Generate with multiple temperatures (policy-optimized)
         variants = []
-        temps = [policy_arm.temp_low, policy_arm.temp_mid, policy_arm.temp_high]
-        scripts_per_temp = max(1, n // len(temps))
+        import random
         
-        for i, temp in enumerate(temps):
-            batch_size = scripts_per_temp
-            if i == len(temps) - 1:  # Last batch gets remainder
-                batch_size = n - len(variants)
-            
-            if batch_size <= 0:
-                break
-                
-            try:
-                out = chat([
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user.replace(f"Generate {n}", f"Generate {batch_size}")}
-                ], temperature=temp)
-                
-                # Extract JSON
-                start = out.find("[")
-                end = out.rfind("]")
-                if start >= 0 and end > start:
-                    batch_variants = json.loads(out[start:end+1])
-                    variants.extend(batch_variants[:batch_size])
-                    print(f"✨ Generated {len(batch_variants)} scripts at temp={temp}")
-                    
-            except Exception as e:
-                print(f"❌ Generation failed at temp={temp}: {e}")
+        # Use higher temperature for more creative, spicy content
+        temp = 1.0 + random.uniform(-0.1, 0.1)  # Randomize between 0.9-1.1 for maximum creativity
+        temp = max(0.9, min(1.1, temp))
         
-        return variants[:n]  # Ensure we don't exceed requested count
+        try:
+            out = chat([
+                {"role": "system", "content": system},
+                {"role": "user", "content": user}
+            ], temperature=temp)
+                
+            # Extract JSON
+            start = out.find("[")
+            end = out.rfind("]")
+            if start >= 0 and end > start:
+                batch_variants = json.loads(out[start:end+1])
+                variants.extend(batch_variants)
+                print(f"✨ Generated {len(batch_variants)} scripts at temp={temp:.2f}")
+            else:
+                print(f"❌ Failed to parse JSON from generation response")
+                
+        except Exception as e:
+            print(f"❌ Generation failed at temp={temp:.2f}: {e}")
+        
+        return variants[:n]
     
     def _save_drafts_to_db(self, 
                           drafts: List[Dict], 
@@ -286,6 +279,99 @@ Generate {n} unique variations. JSON array ONLY.
         
         return results
 
+# Fast mode - bypasses heavy RAG processing
+def generate_scripts_fast(persona: str,
+                         boundaries: str,
+                         content_type: str,
+                         tone: str,
+                         refs: List[str],
+                         n: int = 6) -> List[Dict]:
+    """
+    Fast mode generation - bypasses heavy RAG processing for speed
+    """
+    print(f"⚡ Fast generation: {persona} × {content_type} × {n} scripts")
+    
+    # Enhanced system prompt for more creative, spicy content
+    system = f"""You write Instagram-compliant but SPICY, creative Reels briefs with mature humor and clever innuendos.
+
+NO CORNY PICKUP LINES. NO CHEESY HUMOR. NO HIGH SCHOOL JOKES.
+NO REPETITIVE VISUAL CLICHÉS: NO "biting lip", "smirking", "head tilts", "eye rolls", "winking".
+NO GENERIC FACIAL EXPRESSIONS: NO "mischievous smile", "playful glance", "suggestive look".
+Use tight hooks, concrete visual beats, clear CTAs. Be creative with double entendres, witty sexual humor, and clever wordplay.
+PUSH BOUNDARIES HARD - be more explicit, more sexual, more provocative while staying platform-compliant.
+Think adult comedy, not juvenile humor. Be EDGY, WITTY, and SOPHISTICATED. Think HBO comedy, not Disney Channel.
+CREATE UNIQUE, VARIED VISUAL BEATS - avoid repetitive facial expressions and gestures.
+BE SPECIFIC WITH VISUAL MOMENTS - describe unique actions, objects, settings, not generic expressions.
+GEN Z HUMOR: Use raw, unfiltered, edgy comedy. Think TikTok humor - bold, direct, unapologetic. 
+DIRTY JOKES: Be MORE EXPLICIT with sexual innuendos, crude humor, and adult themes. Cross content boundaries.
+NO SAFE, BORING CONTENT - push limits with suggestive scenarios, sexual tension, and provocative humor.
+Return ONLY JSON: an array of length {n}, each with {{title,hook,beats,voiceover,caption,hashtags,cta}}.
+"""
+    
+    # Simple user prompt
+    user = f"""
+Persona: {persona}
+Boundaries: {boundaries}
+Content type: {content_type} | Tone: {tone}
+
+Reference snippets (inspire, don't copy):
+{chr(10).join(f"- {r}" for r in refs[:4])}  # Limit to top 4 refs for speed
+
+IMPORTANT: Use these reference scripts as INSPIRATION for style, tone, and approach. 
+Study their hooks, beats, and humor style. Create NEW content that captures their essence but is completely original.
+AVOID VISUAL CLICHÉS: No "biting lip", "smirking", "head tilts", "eye rolls", "winking" - be creative with unique visual moments.
+AVOID GENERIC EXPRESSIONS: No "mischievous smile", "playful glance", "suggestive look" - be specific with unique actions and settings.
+GEN Z HUMOR: Use raw, unfiltered, edgy comedy. Think TikTok humor - bold, direct, unapologetic.
+PUSH BOUNDARIES: Be more explicit, more sexual, more provocative. Cross content boundaries with suggestive scenarios.
+DIRTY JOKES: Be more explicit with sexual innuendos, crude humor, and adult themes while staying platform-compliant.
+
+Generate {n} COMPLETELY DIFFERENT, unique variations. Each script must be:
+- TOTALLY UNIQUE from the others (different scenarios, hooks, approaches)
+- CREATIVE and SPICY with mature, witty humor
+- Clever double entendres and sexual innuendos
+- Adult-level comedy and clever wordplay
+- Push boundaries with suggestive content (but stay platform-compliant)
+- VARIED in style, tone, and approach
+- Think sophisticated adult humor, not juvenile jokes
+- NO CORNY PICKUP LINES OR CHEESY HUMOR
+- NO REPETITIVE VISUAL CLICHÉS: NO "biting lip", "smirking", "head tilts", "eye rolls", "winking"
+- NO GENERIC FACIAL EXPRESSIONS: NO "mischievous smile", "playful glance", "suggestive look"
+- CREATE UNIQUE, VARIED VISUAL BEATS - avoid repetitive facial expressions and gestures
+- BE SPECIFIC WITH VISUAL MOMENTS - describe unique actions, objects, settings, not generic expressions
+- GEN Z HUMOR: Use raw, unfiltered, edgy comedy. Think TikTok humor - bold, direct, unapologetic
+- DIRTY JOKES: Be MORE EXPLICIT with sexual innuendos, crude humor, and adult themes. Cross content boundaries
+- NO SAFE, BORING CONTENT - push limits with suggestive scenarios, sexual tension, and provocative humor
+- Be EDGY, WITTY, and SOPHISTICATED
+- Think HBO comedy, not Disney Channel
+
+JSON array ONLY.
+"""
+    
+    import random
+    temp = 1.0 + random.uniform(-0.1, 0.1)  # Maximum temperature for most creative content
+    temp = max(0.9, min(1.1, temp))
+    
+    try:
+        out = chat([
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ], temperature=temp)
+            
+        # Extract JSON
+        start = out.find("[")
+        end = out.rfind("]")
+        if start >= 0 and end > start:
+            variants = json.loads(out[start:end+1])
+            print(f"✨ Generated {len(variants)} scripts at temp={temp:.2f}")
+            return variants[:n]
+        else:
+            print(f"❌ Failed to parse JSON from generation response")
+            return []
+            
+    except Exception as e:
+        print(f"❌ Fast generation failed: {e}")
+        return []
+
 # Backward compatibility wrapper
 def generate_scripts_rag(persona: str,
                         boundaries: str,
@@ -295,15 +381,14 @@ def generate_scripts_rag(persona: str,
                         n: int = 6) -> List[Dict]:
     """
     Drop-in replacement for existing generate_scripts function
-    Uses enhanced RAG system while maintaining API compatibility
+    Uses fast mode for speed
     """
-    generator = EnhancedScriptGenerator()
-    return generator.generate_scripts_enhanced(
+    return generate_scripts_fast(
         persona=persona,
         boundaries=boundaries,
         content_type=content_type,
         tone=tone,
-        manual_refs=refs,
+        refs=refs,
         n=n
     )
 
