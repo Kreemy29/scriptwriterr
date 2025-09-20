@@ -18,7 +18,18 @@ A powerful AI-powered script generation platform for creating engaging social me
 - Python 3.9+
 - Git
 
-### Setup
+### Quick Setup (Recommended)
+```bash
+# Clone and setup
+git clone https://github.com/Kreemy29/scriptwriterr.git
+cd scriptwriterr
+make dev-setup
+
+# Run the application
+make run
+```
+
+### Manual Setup
 
 1. **Clone the repository**
    ```bash
@@ -39,34 +50,71 @@ A powerful AI-powered script generation platform for creating engaging social me
 
 4. **Initialize database**
    ```bash
-   python -c "from db import create_tables; create_tables()"
+   python main.py init-db
    ```
 
 5. **Run the application**
    ```bash
-   streamlit run app.py
+   # Using the main entry point (recommended)
+   python main.py run
+   
+   # Or directly with Streamlit
+   streamlit run src/app.py
    ```
+
+### Available Commands
+
+Use the Makefile for common tasks:
+```bash
+make help      # Show all available commands
+make install   # Install dependencies
+make test      # Run tests
+make run       # Start the application
+make init-db   # Initialize database
+make clean     # Clean temporary files
+make lint      # Run linting
+make format    # Format code
+```
 
 ## 📁 Project Structure
 
 ```
 scriptwriterr/
-├── app.py                 # Main Streamlit application
-├── rag_integration.py     # RAG system integration
-├── rag_retrieval.py       # Script retrieval logic
-├── data_hierarchy.py      # Data hierarchy management
-├── models.py              # Database models
-├── db.py                  # Database operations
-├── deepseek_client.py     # DeepSeek API client
-├── auto_scorer.py         # Auto-scoring system
-├── bandit_learner.py      # Multi-armed bandit learning
-├── compliance.py          # Content compliance checking
-├── dataset_manager.py     # Dataset management
-├── daily_maintenance.py   # Maintenance tasks
+├── main.py                # Main entry point
+├── src/                   # Source code
+│   ├── __init__.py        # Package initialization
+│   ├── app.py             # Main Streamlit application
+│   ├── rag_integration.py # RAG system integration
+│   ├── rag_retrieval.py   # Script retrieval logic
+│   ├── data_hierarchy.py  # Data hierarchy management
+│   ├── models.py          # Database models
+│   ├── db.py              # Database operations
+│   ├── deepseek_client.py # DeepSeek API client
+│   ├── auto_scorer.py     # Auto-scoring system
+│   ├── bandit_learner.py  # Multi-armed bandit learning
+│   ├── compliance.py      # Content compliance checking
+│   ├── dataset_manager.py # Dataset management
+│   └── daily_maintenance.py # Maintenance tasks
+├── tests/                 # Test suite
+│   ├── __init__.py
+│   ├── test_models.py
+│   └── test_rag_integration.py
+├── scripts/               # Utility scripts
+│   ├── import_emily.py
+│   ├── import_model_data.py
+│   └── app_deploy.py
+├── data/                  # Data directory
+│   ├── raw/               # Raw data files
+│   ├── processed/         # Processed data
+│   └── exports/           # Exported data
 ├── docs/                  # Documentation
 ├── examples/              # Example configurations
 ├── config/                # Configuration files
-└── requirements.txt       # Python dependencies
+├── logs/                  # Log files
+├── requirements.txt       # Python dependencies
+├── setup.py               # Package setup
+├── Makefile               # Common tasks
+└── README.md              # This file
 ```
 
 ## 🎯 Usage

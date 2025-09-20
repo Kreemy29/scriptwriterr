@@ -29,6 +29,7 @@ Thumbs.db
 
 # Logs
 *.log
+logs/*.log
 
 # Temporary files
 *.tmp
@@ -37,8 +38,12 @@ Thumbs.db
 # Data files (keep structure but not actual data)
 *.jsonl
 *.json
-data/
-dataset/
+data/raw/*
+data/processed/*
+data/exports/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/exports/.gitkeep
 
 # Deployment files
 quick-deploy.bat
@@ -49,3 +54,18 @@ scriptwriter/
 # Import scripts (temporary)
 import_*.py
 clear_and_import_data.py
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+ENV/
