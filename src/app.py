@@ -121,7 +121,7 @@ with st.sidebar:
         )
         
         # Tone is now handled by persona description
-        tone = "playful"  # Default, will be overridden by persona
+        tone = persona  # Use the persona description as tone
         
         n = st.slider(
             "Number of drafts", 
@@ -403,6 +403,7 @@ with st.sidebar:
                             )
                         ses.add(s)
                     ses.commit()
+                    print(f"✅ Saved script to database: creator={creator}, content_type={content_type}")
                 
                 progress_bar.progress(100)
                 status_text.text("")
@@ -466,6 +467,7 @@ with tab1:
     with get_session() as ses:
         q = select(Script).where(Script.creator == creator, Script.source == "ai")
         all_drafts = list(ses.exec(q))
+        print(f"🔍 Loading drafts for creator='{creator}': found {len(all_drafts)} scripts")
     
     if not all_drafts:
         st.markdown("""
