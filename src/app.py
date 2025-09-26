@@ -948,7 +948,3 @@ st.markdown("""
     💡 Tip: Generate scripts in batches, then refine with AI tools for best results
 </div>
 """, unsafe_allow_html=True)
-
-def main():
-    """Main function for Streamlit Cloud compatibility"""
-    pass  # All the app logic is already executed above
