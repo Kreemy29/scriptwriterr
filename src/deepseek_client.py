@@ -9,7 +9,8 @@ def get_api_key():
     try:
         if hasattr(st, 'secrets') and "DEEPSEEK_API_KEY" in st.secrets:
             return st.secrets["DEEPSEEK_API_KEY"]
-    except:
+    except Exception as e:
+        # Streamlit secrets might not be available in all contexts
         pass
     return os.getenv("DEEPSEEK_API_KEY")
 
@@ -23,9 +24,163 @@ def chat(messages, model="deepseek-chat", temperature=0.9):
         raise ValueError("DEEPSEEK_API_KEY not found. Please set it in Hugging Face Space secrets or environment variables.")
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {"model": model, "messages": messages, "temperature": temperature}
-    r = requests.post(f"{BASE}/chat/completions", headers=headers, data=json.dumps(payload), timeout=60)
+    r = requests.post(f"{BASE}/chat/completions", headers=headers, data=json.dumps(payload), timeout=120)
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
+
+def generate_scripts_template(persona, boundaries, content_type, tone, refs, n=6):
+    """
+    Generate scripts using the new template format with conditional script generation
+    """
+    # Map content types to video types
+    video_type_mapping = {
+        "talking-style": "talking",
+        "skit": "skit", 
+        "fake-podcast": "fake_podcast",
+        "reaction-prank": "prank",
+        "lifestyle": "candid_interaction",
+        "thirst-trap": "thirst_trap"
+    }
+    
+    video_type = video_type_mapping.get(content_type, "skit")
+    
+    # Determine if script should be included based on video type
+    script_rules = {
+        "talking": "always",           # Always include script
+        "skit": "conditional",         # Include script OR voiceover based on context
+        "fake_podcast": "always",      # Always include script
+        "prank": "always",             # Always include script
+        "candid_interaction": "conditional",  # Include script OR none based on context
+        "thirst_trap": "never"         # Never include script/voiceover
+    }
+    
+    script_rule = script_rules.get(video_type, "conditional")
+    
+    # Build system prompt based on video type and script requirements
+    system = f"""You are a professional video content planner creating Instagram Reels scripts.
+
+VIDEO TYPE: {video_type.upper()}
+SCRIPT REQUIREMENT: {script_rule.upper()}
+
+Create {n} video planning templates with this EXACT JSON structure:
+{{
+  "model_name": "{persona}",
+  "date": "2025-09-24",
+  "video_type": "{video_type}",
+  "video_length": "15-25s",
+  "cut_lengths": "Quick cuts",
+  "video_hook": "[Text overlay on screen - POV scenario or caption, can be empty if no text needed]",
+  "lighting": "Natural lighting",
+  "main_idea": "[Brief concept description]",
+  "action_scenes": ["Detailed scene 1 with specific actions, expressions, and timing", "Detailed scene 2 with specific actions, expressions, and timing", "Detailed scene 3 with specific actions, expressions, and timing"],
+  "script_guidance": "[Script content or empty string]",
+  "storyboard_notes": ["Location", "Wardrobe", "Shot type", "Focus points"],
+  "list_of_shots": ["Wide shot", "Close-up", "Medium shot"],
+  "intro_hook": "[ACTUAL HOOK: visual/audio attention-grabber for first 0.3 seconds - camera shake, boobs shaking, unique angle, weird audio, voice cadence change]",
+  "outro_hook": "[REWARD: visual payoff, audio reward, satisfying conclusion]"
+}}
+
+DETAILED REQUIREMENTS:
+
+HOOKS (video_hook, intro_hook, outro_hook):
+- Be SPECIFIC and DETAILED, not generic
+- video_hook: TEXT OVERLAY on screen (POV scenario, caption, or empty if no text needed)
+- intro_hook: ACTUAL HOOK - VISUAL/AUDIO attention-grabber for first 0.3 seconds (camera shake, boobs shaking, unique angle, weird audio, voice cadence change)
+- outro_hook: REWARD for watching - satisfying conclusion (visual payoff, audio reward, call-to-action)
+
+IMPORTANT: Text overlay (video_hook) and actual hook (intro_hook) are DIFFERENT:
+- Text overlay = what appears as text on screen (sometimes)
+- Actual hook = the visual/audio element that grabs attention (always)
+
+ACTION SCENES:
+- Each scene must be DETAILED with specific actions, expressions, timing
+- Include: What the person does, how they move, facial expressions, timing
+- Example: "Person looks confused, then realization hits, points at camera with 'aha!' expression, holds for 2 seconds"
+- NOT generic like "Scene 1" - be specific about the actual content
+
+SCRIPT GUIDANCE RULES:
+- TALKING videos: Always include detailed script content - SINGLE SHOT, DIRECT TO CAMERA (like realcarlyjane/realmarciereeves), NO storylines, NO cringe content
+- SKIT videos: Include script if it's a talking skit, empty if it's visual comedy
+- FAKE PODCAST: Always include script content
+- PRANK videos: Always include script content  
+- CANDID INTERACTION: Include script if there's talking, empty if it's just actions
+- THIRST TRAP: Always empty (no script/voiceover)
+
+IMPORTANT VIDEO TYPE RULES:
+- TALKING videos: Model talks DIRECTLY TO CAMERA, single continuous shot, no cuts, no storylines, no boyfriend mentions, authentic direct communication
+- SKIT videos: Can be visual comedy or talking skits, include appropriate script content
+- AVOID: Excessive boyfriend mentions, cringe storylines, overly complex narratives
+
+Return ONLY JSON array with {n} complete templates."""
+
+    user = f"""
+Persona: {persona}
+Content Type: {content_type} | Video Type: {video_type}
+Tone: {tone}
+Boundaries: {boundaries}
+
+Reference examples (use for style inspiration):
+{chr(10).join(f"- {r}" for r in refs[:4])}
+
+Create {n} COMPLETELY DIFFERENT video planning templates. Each must be:
+
+HOOKS - Be SPECIFIC and DETAILED:
+- video_hook: TEXT OVERLAY on screen (POV scenario, caption, or empty if no text needed)
+- intro_hook: ACTUAL HOOK - VISUAL/AUDIO attention-grabber for first 0.3 seconds (camera shake, boobs shaking, unique angle, weird audio, voice cadence change)
+- outro_hook: REWARD for watching - satisfying conclusion (visual payoff, audio reward, call-to-action)
+
+REMEMBER: Text overlay and actual hook are DIFFERENT things!
+
+ACTION SCENES - Be DETAILED with specific actions:
+- Include: exact movements, facial expressions, timing, camera interactions
+- Example: "Person looks confused for 1 second, then realization hits, points at camera with 'aha!' expression, holds for 2 seconds"
+- NOT generic like "Scene 1" - describe the actual specific content
+
+SCRIPT GUIDANCE:
+- TALKING videos: SINGLE SHOT, DIRECT TO CAMERA, NO storylines, NO boyfriend mentions, authentic direct communication
+- SKIT videos: Include script if talking, empty if visual comedy
+- Other types: Appropriate based on video type
+
+PRODUCTION DETAILS:
+- Detailed storyboard_notes with specific locations, wardrobe, shot types
+- Professional shot list with specific camera angles and movements
+
+AVOID: Excessive boyfriend mentions, cringe storylines, overly complex narratives
+
+JSON array ONLY.
+"""
+
+    # Use consistent temperature for template generation
+    temperature = 0.8
+    
+    try:
+        out = chat([
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ], temperature=temperature)
+        
+        # Extract JSON
+        start = out.find("[")
+        end = out.rfind("]")
+        if start >= 0 and end > start:
+            json_str = out[start:end+1]
+            print(f"🔍 Raw JSON output: {json_str[:200]}...")
+            try:
+                templates = json.loads(json_str)
+                print(f"✨ Generated {len(templates)} video templates for {video_type}")
+                return templates[:n]
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON parsing error: {e}")
+                print(f"🔍 Problematic JSON: {json_str}")
+                return []
+        else:
+            print(f"❌ Failed to find JSON array in output")
+            print(f"🔍 Raw output: {out[:200]}...")
+            return []
+            
+    except Exception as e:
+        print(f"❌ Template generation failed: {e}")
+        return []
 
 def generate_scripts(persona, boundaries, content_type, tone, refs, n=6):
     # Determine content style based on boundaries and tone
@@ -92,6 +247,13 @@ Create {n} COMPLETELY DIFFERENT, unique, creative, and engaging scripts. Each sc
 - Engaging and memorable scenarios
 - Avoiding clichés and generic content
 - VARIED in style, tone, and approach
+- BODY-FOCUSED: Include tasteful references to the model's physical features and attractiveness
+- PHYSICAL APPEAL: Use body language, curves, and physical comedy as central elements
+- VISUAL ENGAGEMENT: Create scenarios that showcase the model's figure in engaging ways
+- NO RELATIONSHIP CONTENT: Avoid boyfriend, girlfriend, partner, dating scenarios
+- SOLO FOCUS: Model alone, interacting with objects, situations, or audience directly
+- FORBIDDEN WORDS: "we", "us", "together", "couple", "partner", "boyfriend", "girlfriend"
+- REQUIRED LANGUAGE: Use "I", "me", "my", "myself", "alone", "solo" instead
 
 HOOK STRATEGIES (rotate these formats):
 - POV scenarios: "POV: you just subscribed and I notice your name..."
@@ -100,6 +262,13 @@ HOOK STRATEGIES (rotate these formats):
 - Challenge/Trend hijack: Use trending formats with suggestive context
 - Storytelling tease: Short narrative with cliffhanger
 
+SOLO CONTENT EXAMPLES (avoid relationship themes):
+- Lifestyle scenarios: getting ready, working out, cooking, shopping
+- Challenge content: trying trends, reactions, transformations
+- POV scenarios: talking directly to audience, sharing thoughts
+- Object interactions: playing with props, trying products, demonstrating things
+- Situational comedy: awkward moments, funny observations, relatable experiences
+
 IMPORTANT: Make each script completely different from the others. Use different:
 - Opening hooks and scenarios
 - Story structures and beats
@@ -107,12 +276,19 @@ IMPORTANT: Make each script completely different from the others. Use different:
 - Creative approaches and angles
 - Hook formats (POV, question, reverse bait, etc.)
 
+CRITICAL LANGUAGE RULES:
+- NEVER use "we", "us", "together", "couple", "partner", "boyfriend", "girlfriend"
+- ALWAYS use "I", "me", "my", "myself", "alone", "solo" instead
+- Focus on the model as a solo individual, not part of a relationship
+
 N = {n}
 JSON array ONLY.
 """
-    # Use slightly varied temperature for more diversity
+    # Use more varied temperature for maximum diversity
     import random
-    temperature = 0.9 + random.uniform(-0.1, 0.1)  # Random between 0.8 and 1.0
+    import time
+    random.seed(int(time.time() * 1000) % 10000)  # Use current time as seed
+    temperature = 0.8 + random.uniform(0.0, 0.4)  # Random between 0.8 and 1.2
     out = chat([{"role":"system","content":system},{"role":"user","content":user}], temperature=temperature)
     # Be lenient if model wraps JSON with text
     start = out.find("[")

@@ -2,7 +2,7 @@
 import os, json, random
 from contextlib import contextmanager
 from typing import List, Iterable, Tuple, Optional
-from sqlmodel import SQLModel, create_engine, Session, select
+from sqlmodel import SQLModel, create_engine, Session, select, delete
 from datetime import datetime
 
 # ---- Configure DB ----
@@ -15,6 +15,17 @@ from models import Script, Rating  # make sure Script has: is_reference: bool, p
 # ---- Init / Session ----
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+
+def clear_all_data() -> None:
+    """Clear all data from the database"""
+    from models import Script, Embedding, AutoScore, PolicyWeights
+    with get_session() as ses:
+        # Clear all tables
+        ses.exec(delete(Script))
+        ses.exec(delete(Embedding))
+        ses.exec(delete(AutoScore))
+        ses.exec(delete(PolicyWeights))
+        ses.commit()
 
 @contextmanager
 def get_session():
@@ -38,20 +49,99 @@ def _payload_from_jsonl_row(row: dict) -> Tuple[dict, str, str]:
     # Compact caption: use caption options line as a quick reference
     caption = " | ".join(row.get("caption_options", []))[:180]
 
+    # Create unique title by combining id with concept or theme
+    base_title = external_id or row.get("theme", "") or "Imported Script"
+    concept = row.get("concept", "")
+    if concept:
+        # Use first part of concept as unique identifier
+        concept_words = concept.split()[:3]  # First 3 words
+        unique_title = f"{base_title}-{'-'.join(concept_words)}"
+    else:
+        unique_title = base_title
+
+    # Extract actual script content from the rich fields
+    # Hook: look for hook options in the content
+    hook = ""
+    setting_content = row.get("setting", [])
+    if setting_content:
+        # Look for hook-like content - prefer shorter, punchier content
+        for item in setting_content:
+            if "POV:" in item and len(item) < 150:
+                # Extract just the hook part
+                if "POV:" in item:
+                    hook_part = item.split("POV:")[1].split(".")[0].strip()
+                    if hook_part and len(hook_part) < 100:
+                        hook = f"POV: {hook_part}"
+                        break
+    
+    # Beats: extract clean, actionable script beats
+    beats = []
+    for field_name in ["setting", "wardrobe", "list_of_shots", "camera_direction"]:
+        field_content = row.get(field_name, [])
+        if field_content:
+            for item in field_content:
+                if item.strip():
+                    # Look for time-based beats (00:00-00:02 format)
+                    if "00:" in item and len(item) < 200:
+                        beats.append(item.strip())
+                    # Look for short, actionable content
+                    elif len(item.strip()) > 20 and len(item.strip()) < 150 and not any(x in item.lower() for x in ["brand fit", "tl;dr", "meta", "accessibility"]):
+                        beats.append(item.strip())
+    
+    # Voiceover: look for audio/voiceover content
+    voiceover = ""
+    for field_name in ["setting", "wardrobe"]:
+        field_content = row.get(field_name, [])
+        if field_content:
+            for item in field_content:
+                if "trending vo:" in item.lower() or "audio" in item.lower():
+                    # Extract the actual audio text
+                    if "trending vo:" in item.lower():
+                        vo_part = item.lower().split("trending vo:")[1].split(".")[0].strip()
+                        if vo_part and len(vo_part) < 200:
+                            voiceover = vo_part
+                            break
+    
+    # CTA: look for CTA content
+    cta = ""
+    for field_name in ["setting", "wardrobe"]:
+        field_content = row.get(field_name, [])
+        if field_content:
+            for item in field_content:
+                if "comment" in item.lower() and len(item) < 100:
+                    cta = item.strip()
+                    break
+
     payload = dict(
         # core identity
         creator=row.get("model_name", "Unknown"),
         content_type=(row.get("video_type", "") or "talking_style").lower(),
         tone=tone,
-        title=external_id or row.get("theme", "") or "Imported Script",
-        hook=row.get("video_hook") or "",
+        title=unique_title,
+        hook=hook,
 
         # structured fields
-        beats=row.get("storyboard", []) or [],
-        voiceover="",
+        beats=beats[:5],  # Limit to 5 beats to avoid too much content
+        voiceover=voiceover,
         caption=caption,
         hashtags=row.get("hashtags", []) or [],
-        cta="",
+        cta=cta,
+
+        # video production fields (from rich original format)
+        date_iso=row.get("date_iso"),
+        video_length_s=row.get("video_length_s"),
+        cuts=row.get("cuts"),
+        lighting=row.get("lighting", []) or [],
+        concept=row.get("concept"),
+        retention_strategy=row.get("retention_strategy"),
+        key_shots=row.get("key_shots", []) or [],
+        text_overlay_lines=row.get("text_overlay_lines", []) or [],
+        setting=row.get("setting", []) or [],
+        wardrobe=row.get("wardrobe", []) or [],
+        equipment=row.get("equipment", []) or [],
+        list_of_shots=row.get("list_of_shots", []) or [],
+        camera_direction=row.get("camera_direction", []) or [],
+        risk_level=row.get("risk_level"),
 
         # flags
         source="import",
@@ -200,6 +290,9 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
       - newest_n most recent references (freshness)
     Returns flattened snippet list (cap ~8 to keep prompt lean).
     """
+    import random
+    import time
+    
     with get_session() as ses:
         all_refs = list(ses.exec(
             select(Script).where(
@@ -211,7 +304,7 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
         ))
 
     if not all_refs:
-        return []
+        return _get_fallback_refs(content_type)
 
     # sort by score_overall (fallback to 0) and pick top_n
     scored = sorted(all_refs, key=lambda s: (s.score_overall or 0.0), reverse=True)
@@ -240,9 +333,67 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
     snippets: List[str] = []
     for s in chosen_scripts:
         snippets.extend(extract_snippets_from_script(s))
-    # dedupe again and cap ~8 lines
-    seen, out = set(), []
+    
+    # Filter out garbage snippets (too short, metadata fragments, etc.)
+    clean_snippets = []
     for sn in snippets:
+        if (len(sn.strip()) > 15 and 
+            len(sn.strip()) < 200 and 
+            not any(x in sn.lower() for x in ["brand fit", "tl;dr", "meta", "accessibility", "quick text beats", "beat (00:00"]) and
+            not sn.strip().startswith(";") and
+            not sn.strip().startswith(":")):
+            clean_snippets.append(sn.strip())
+    
+    # If we don't have enough clean snippets, use fallback
+    if len(clean_snippets) < 3:
+        return _get_fallback_refs(content_type)
+    
+    # dedupe and cap ~8 lines
+    seen, out = set(), []
+    for sn in clean_snippets:
         if sn not in seen:
             out.append(sn); seen.add(sn)
+    
+    # Shuffle the snippets to add more diversity in the order they appear
+    # Use timestamp-based seed for more variation
+    random.seed(int(time.time() * 1000) % 10000)
+    random.shuffle(out)
+    
     return out[:8]
+
+def _get_fallback_refs(content_type: str) -> List[str]:
+    """Provide high-quality fallback references when database refs are poor"""
+    fallback_refs = {
+        "skit": [
+            "POV: When he says he's good with his hands but you're about to test his skills",
+            "Shot of feet dangling in pool, toes pointed, gently swirling water", 
+            "Quick cut to sunscreen bottle being squeezed with excessive force",
+            "Close-up on pool floatie with 'Queen' text partially deflated",
+            "When the 'deep end' of his skills turns out to be three feet max",
+            "Comment 'POOL' if you'd test these waters",
+            "Tag your summer fling (and lifeguard)",
+            "Save for your next poolside mood"
+        ],
+        "thirst-trap": [
+            "POV: When you catch him staring but he thinks you don't notice",
+            "Shot of slow hair flip with knowing smile",
+            "Quick cut to adjusting jewelry while maintaining eye contact", 
+            "Close-up on lip bite with raised eyebrow",
+            "When the confidence is higher than your standards",
+            "Comment 'NOTICED' if you've been there",
+            "Tag someone who needs to work on their subtlety",
+            "Save for your next confidence boost"
+        ],
+        "reaction-prank": [
+            "POV: When you prank him but his reaction is better than expected",
+            "Shot of him jumping back with exaggerated surprise",
+            "Quick cut to him trying to play it cool but failing",
+            "Close-up on his face going from shock to laughter",
+            "When the prank backfires in the best way possible",
+            "Comment 'PRANKED' if you've been there",
+            "Tag your favorite prank victim",
+            "Save for your next harmless chaos"
+        ]
+    }
+    
+    return fallback_refs.get(content_type, fallback_refs["skit"])

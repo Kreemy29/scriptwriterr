@@ -10,7 +10,8 @@ try:
     clear_mappers()
     metadata = MetaData()
     metadata.clear()
-except:
+except Exception as e:
+    # Silently ignore metadata clearing errors - this is expected in some cases
     pass
 
 class Script(SQLModel, table=True, extend_existing=True):
@@ -30,6 +31,35 @@ class Script(SQLModel, table=True, extend_existing=True):
     compliance: str = "pass"   # pass | warn | fail
     source: str = "ai"         # ai | manual | import
     is_reference: bool = False  # mark imported examples as references
+    
+    # --- Video Production Fields (from rich original format) ---
+    date_iso: Optional[str] = None                # Video creation date (ISO format)
+    video_length_s: Optional[int] = None          # Video duration in seconds
+    cuts: Optional[str] = None                    # Editing style (no_cuts, multi_cuts, etc.)
+    lighting: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Lighting setup
+    concept: Optional[str] = None                 # Video concept description
+    retention_strategy: Optional[str] = None      # Strategy to keep viewers engaged
+    key_shots: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Important visual moments
+    text_overlay_lines: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Text overlays
+    setting: List[str] = Field(default_factory=list, sa_column=Column(JSON))    # Location/setting
+    wardrobe: List[str] = Field(default_factory=list, sa_column=Column(JSON))   # Clothing/outfit
+    equipment: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Camera equipment
+    list_of_shots: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Shot list
+    camera_direction: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Camera movement
+    risk_level: Optional[str] = None              # Content risk assessment
+    
+    # --- NEW: Template-based Video Planning Fields ---
+    model_name: Optional[str] = None              # Model/Creator name for template
+    video_type: Optional[str] = None              # Video type (talking, skit, prank, etc.)
+    video_length: Optional[str] = None            # Video length (15-25s, 30-60s, etc.)
+    cut_lengths: Optional[str] = None             # Cut lengths for editing
+    video_hook: Optional[str] = None              # Video hook (same as hook but template-specific)
+    main_idea: Optional[str] = None               # Main concept/idea
+    action_scenes: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Action scenes (same as beats)
+    script_guidance: Optional[str] = None         # Script/Voiceover guidance (conditional)
+    storyboard_notes: List[str] = Field(default_factory=list, sa_column=Column(JSON))  # Storyboard details
+    intro_hook: Optional[str] = None              # Intro hook variations
+    outro_hook: Optional[str] = None              # Outro hook variations
     
     # --- NEW: cached aggregates from ratings (all optional) ---
     score_overall: Optional[float] = None         # 1..5 (avg)

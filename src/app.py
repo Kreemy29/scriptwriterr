@@ -1,7 +1,7 @@
 import os, streamlit as st
 from dotenv import load_dotenv
 from sqlmodel import select
-from db import init_db, get_session, add_rating
+from db import init_db, get_session, add_rating, get_hybrid_refs
 from models import Script, Revision
 from deepseek_client import generate_scripts, revise_for, selective_rewrite
 from rag_integration import generate_scripts_rag
@@ -30,19 +30,6 @@ init_db()
 # Check for API key in Streamlit secrets or environment
 api_key = st.secrets.get("DEEPSEEK_API_KEY") if hasattr(st, 'secrets') and "DEEPSEEK_API_KEY" in st.secrets else os.getenv("DEEPSEEK_API_KEY")
 
-# DEBUG INFO - remove after fixing
-if hasattr(st, 'secrets'):
-    st.sidebar.write("🔍 DEBUG: Secrets available")
-    if "DEEPSEEK_API_KEY" in st.secrets:
-        st.sidebar.write("✅ DEEPSEEK_API_KEY found in secrets")
-        st.sidebar.write(f"🔑 Key length: {len(st.secrets['DEEPSEEK_API_KEY'])}")
-        st.sidebar.write(f"🔑 Key starts with: {st.secrets['DEEPSEEK_API_KEY'][:10]}...")
-    else:
-        st.sidebar.write("❌ DEEPSEEK_API_KEY NOT in secrets")
-        st.sidebar.write(f"Available secrets: {list(st.secrets.keys())}")
-else:
-    st.sidebar.write("❌ No secrets available")
-
 if not api_key:
     st.error("🔑 **DeepSeek API Key Required**")
     st.markdown("""
@@ -56,8 +43,6 @@ if not api_key:
     Get your free API key at: https://platform.deepseek.com/api_keys
     """)
     st.stop()
-else:
-    st.sidebar.write("✅ API key loaded successfully")
 
 
 # Custom CSS for better styling
@@ -135,15 +120,8 @@ with st.sidebar:
             help="Choose the type of content you want to create"
         )
         
-        # Multi-select tones
-        tone_options = ["naughty", "playful", "suggestive", "funny", "flirty", "bratty", "teasing", "intimate", "witty", "comedic", "confident", "wholesome", "asmr-voice"]
-        selected_tones = st.multiselect(
-            "Tone/Vibe (select multiple)", 
-            tone_options,
-            default=["playful"],
-            help="Choose one or more tones - scripts often blend 2-3 vibes"
-        )
-        tone = ", ".join(selected_tones) if selected_tones else "playful"
+        # Tone is now handled by persona description
+        tone = "playful"  # Default, will be overridden by persona
         
         n = st.slider(
             "Number of drafts", 
@@ -183,9 +161,9 @@ with st.sidebar:
                     st.session_state.persona_text = persona_presets[persona_preset]
         
         persona = st.text_area(
-            "Persona Description", 
+            "Persona & Tone", 
             value=st.session_state.get('persona_text', "girl-next-door; playful; witty"),
-            help="Describe the character/personality for the scripts"
+            help="Describe personality, tone, and vibe. Use semicolons to separate: 'playful; witty; confident' or 'innocent; sweet; suggestive'"
         )
         
         # Compliance/Boundaries presets
@@ -221,11 +199,11 @@ with st.sidebar:
         col1, col2 = st.columns(2)
         
         with col1:
-            # Hook style
-            hook_style = st.selectbox(
-                "Hook Style",
-                ["Auto", "Question", "Confession", "Contrarian", "PSA", "Tease", "Command", "Shock"],
-                help="How should the hook start?"
+            # Spicy hooks toggle
+            spicy_hooks = st.toggle(
+                "🔥 Spicy Hooks",
+                value=False,
+                help="Spicy = suggestive visual hooks (ass, tits shake, camera shake). Not spicy = traditional hooks"
             )
             
             # Length
@@ -295,7 +273,7 @@ with st.sidebar:
     }
     
     mapped_content_type = content_type_mapping.get(content_type, content_type)
-    ref_count = len(get_hybrid_refs("Emily", mapped_content_type, k=6))
+    ref_count = len(get_hybrid_refs(creator, mapped_content_type, k=6))
     
     st.info(f"🤖 AI will use {ref_count} database references + your extras")
     
@@ -312,8 +290,16 @@ with st.sidebar:
                 # Get manual refs from text area
                 manual_refs = [x.strip() for x in refs_text.split("\n") if x.strip()]
                 
-                # Get automatic refs from Emily scripts in database using content type mapping
-                auto_refs = get_hybrid_refs("Emily", mapped_content_type, k=6)
+                # Get automatic refs from the selected creator's scripts in database
+                auto_refs = get_hybrid_refs(creator, mapped_content_type, k=6)
+                
+                # If not enough refs from the specific creator, add some from other creators for diversity
+                if len(auto_refs) < 4:
+                    other_creators = ["Emily Kent (@itsemilykent)", "Marcie", "Mia", "Anya"]
+                    for other_creator in other_creators:
+                        if other_creator != creator and len(auto_refs) < 6:
+                            additional_refs = get_hybrid_refs(other_creator, mapped_content_type, k=2)
+                            auto_refs.extend(additional_refs)
                 
                 # Combine both
                 all_refs = manual_refs + auto_refs
@@ -335,8 +321,6 @@ with st.sidebar:
                 
                 # Build enhanced prompt from advanced options
                 advanced_prompt = ""
-                if hook_style != "Auto":
-                    advanced_prompt += f"Hook style: {hook_style}. "
                 if length != "Auto":
                     advanced_prompt += f"Target length: {length}. "
                 if retention != "Auto":
@@ -348,6 +332,12 @@ with st.sidebar:
                 if risk_level != 3:
                     risk_desc = {1: "very safe", 2: "mild", 3: "suggestive", 4: "spicy", 5: "very spicy"}
                     advanced_prompt += f"Risk level: {risk_desc[risk_level]}. "
+                
+                # Spicy hooks toggle
+                if spicy_hooks:
+                    advanced_prompt += "SPICY HOOKS: Use suggestive visual hooks like ass showing in frame, camera shaking, model running so tits shake, suggestive angles. "
+                else:
+                    advanced_prompt += "TRADITIONAL HOOKS: Use non-suggestive visual hooks like unique angles, voice changes, interesting setups. "
                 
                 # Enhance boundaries with advanced prompt
                 enhanced_boundaries = boundaries
@@ -363,14 +353,54 @@ with st.sidebar:
                 # Save to database
                 with get_session() as ses:
                     for d in drafts:
-                        lvl, _ = score_script(" ".join([d.get("title",""), d.get("hook",""), *d.get("beats",[]), d.get("voiceover",""), d.get("caption",""), d.get("cta","")]))
-                        s = Script(
-                            creator=creator, content_type=content_type, tone=tone,
-                            title=d["title"], hook=d["hook"], beats=d["beats"],
-                            voiceover=d["voiceover"], caption=d["caption"],
-                            hashtags=d.get("hashtags",[]), cta=d.get("cta",""),
-                            compliance=lvl, source="ai"
-                        )
+                        # Handle both old and new format for compliance scoring
+                        if "model_name" in d:
+                            # New template format
+                            content_text = " ".join([
+                                d.get("main_idea", ""),
+                                d.get("video_hook", ""),
+                                *d.get("action_scenes", []),
+                                d.get("script_guidance", "")
+                            ])
+                            lvl, _ = score_script(content_text)
+                            
+                            s = Script(
+                                creator=creator,
+                                content_type=content_type,
+                                tone=tone,
+                                title=d.get("main_idea", "Generated Script"),
+                                hook=d.get("video_hook", ""),
+                                beats=d.get("action_scenes", []),
+                                voiceover=d.get("script_guidance", ""),
+                                caption="",  # No longer used
+                                hashtags=[],  # No longer used
+                                cta="",  # No longer used
+                                compliance=lvl,
+                                source="ai",
+                                # New template fields
+                                model_name=d.get("model_name", creator),
+                                video_type=d.get("video_type", content_type),
+                                video_length=d.get("video_length", "15-25s"),
+                                cut_lengths=d.get("cut_lengths", "Quick cuts"),
+                                video_hook=d.get("video_hook", ""),
+                                main_idea=d.get("main_idea", ""),
+                                action_scenes=d.get("action_scenes", []),
+                                script_guidance=d.get("script_guidance", ""),
+                                storyboard_notes=d.get("storyboard_notes", []),
+                                intro_hook=d.get("intro_hook", ""),
+                                outro_hook=d.get("outro_hook", ""),
+                                list_of_shots=d.get("list_of_shots", [])
+                            )
+                        else:
+                            # Old format (backward compatibility)
+                            lvl, _ = score_script(" ".join([d.get("title",""), d.get("hook",""), *d.get("beats",[]), d.get("voiceover",""), d.get("caption",""), d.get("cta","")]))
+                            s = Script(
+                                creator=creator, content_type=content_type, tone=tone,
+                                title=d["title"], hook=d["hook"], beats=d["beats"],
+                                voiceover=d["voiceover"], caption=d["caption"],
+                                hashtags=d.get("hashtags",[]), cta=d.get("cta",""),
+                                compliance=lvl, source="ai"
+                            )
                         ses.add(s)
                     ses.commit()
                 
@@ -531,35 +561,123 @@ with tab1:
                 edit_tab1, edit_tab2, edit_tab3 = st.tabs(["📝 Edit", "🛠️ AI Tools", "📜 History"])
                 
                 with edit_tab1:
-                    # Main editing fields
+                    # Main editing fields - New Template Format
                     with st.form("edit_script"):
-                        title = st.text_input("Title", value=current.title)
-                        hook = st.text_area("Hook", value=current.hook or "", height=80)
-                        beats_text = st.text_area("Beats (one per line)", value="\n".join(current.beats or []), height=120)
-                        voiceover = st.text_area("Voiceover", value=current.voiceover or "", height=80)
-                        caption = st.text_area("Caption", value=current.caption or "", height=100)
-                        # Clean up hashtags display - remove commas, show as space-separated 
-                        current_hashtags = current.hashtags or []
-                        hashtags_display = " ".join(current_hashtags) if current_hashtags else ""
-                        hashtags = st.text_input("Hashtags (space separated)", value=hashtags_display, help="Enter hashtags like: #gym #fitness #workout")
-                        cta = st.text_input("Call to Action", value=current.cta or "")
+                        # Check if this is a new template format script
+                        if hasattr(current, 'model_name') and current.model_name:
+                            # New template format
+                            st.subheader("📋 Video Planning Template")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                model_name = st.text_input("Model Name", value=current.model_name or "")
+                                video_type = st.text_input("Video Type", value=current.video_type or "")
+                                video_length = st.text_input("Video Length", value=current.video_length or "")
+                                cut_lengths = st.text_input("Cut Lengths", value=current.cut_lengths or "")
+                            
+                            with col2:
+                                video_hook = st.text_area("Video Hook", value=current.video_hook or current.hook or "", height=80)
+                                lighting = st.text_input("Lighting", value=", ".join(current.lighting) if current.lighting else "")
+                                main_idea = st.text_input("Main Idea", value=current.main_idea or current.title or "")
+                            
+                            # Action scenes (beats)
+                            action_scenes_text = st.text_area(
+                                "Action Scenes (one per line)", 
+                                value="\n".join(current.action_scenes or current.beats or []), 
+                                height=120,
+                                help="Describe each scene/action in the video"
+                            )
+                            
+                            # Script guidance (conditional)
+                            script_guidance = st.text_area(
+                                "Script Guidance", 
+                                value=current.script_guidance or current.voiceover or "", 
+                                height=100,
+                                help="Script content for talking videos, empty for visual-only content"
+                            )
+                            
+                            # Storyboard notes
+                            storyboard_text = st.text_area(
+                                "Storyboard Notes (one per line)", 
+                                value="\n".join(current.storyboard_notes or []), 
+                                height=100,
+                                help="Location, wardrobe, shot types, focus points"
+                            )
+                            
+                            # Shot list
+                            shots_text = st.text_area(
+                                "List of Shots (one per line)", 
+                                value="\n".join(current.list_of_shots or []), 
+                                height=80,
+                                help="Specific shots: Wide shot, Close-up, etc."
+                            )
+                            
+                            # Hook variations
+                            col3, col4 = st.columns(2)
+                            with col3:
+                                intro_hook = st.text_area("Intro Hook", value=current.intro_hook or "", height=60)
+                            with col4:
+                                outro_hook = st.text_area("Outro Hook", value=current.outro_hook or "", height=60)
+                        else:
+                            # Old format (backward compatibility)
+                            st.subheader("📝 Script Editor (Legacy Format)")
+                            title = st.text_input("Title", value=current.title)
+                            hook = st.text_area("Hook", value=current.hook or "", height=80)
+                            beats_text = st.text_area("Beats (one per line)", value="\n".join(current.beats or []), height=120)
+                            voiceover = st.text_area("Voiceover", value=current.voiceover or "", height=80)
+                            caption = st.text_area("Caption", value=current.caption or "", height=100)
+                            # Clean up hashtags display - remove commas, show as space-separated 
+                            current_hashtags = current.hashtags or []
+                            hashtags_display = " ".join(current_hashtags) if current_hashtags else ""
+                            hashtags = st.text_input("Hashtags (space separated)", value=hashtags_display, help="Enter hashtags like: #gym #fitness #workout")
+                            cta = st.text_input("Call to Action", value=current.cta or "")
                         
                         # Submit button
                         if st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True):
                             with get_session() as ses:
                                 dbs = ses.get(Script, current.id)
-                                dbs.title = title
-                                dbs.hook = hook
-                                dbs.beats = [x.strip() for x in beats_text.split("\n") if x.strip()]
-                                dbs.voiceover = voiceover
-                                dbs.caption = caption
-                                # Parse hashtags from space-separated input
-                                dbs.hashtags = [x.strip() for x in hashtags.split() if x.strip()]
-                                dbs.cta = cta
                                 
-                                # Update compliance
-                                lvl, _ = score_script(blob_from(dbs.model_dump()))
-                                dbs.compliance = lvl
+                                # Check if this is a new template format script
+                                if hasattr(current, 'model_name') and current.model_name:
+                                    # New template format
+                                    dbs.model_name = model_name
+                                    dbs.video_type = video_type
+                                    dbs.video_length = video_length
+                                    dbs.cut_lengths = cut_lengths
+                                    dbs.video_hook = video_hook
+                                    dbs.lighting = [x.strip() for x in lighting.split(",") if x.strip()]
+                                    dbs.main_idea = main_idea
+                                    dbs.action_scenes = [x.strip() for x in action_scenes_text.split("\n") if x.strip()]
+                                    dbs.script_guidance = script_guidance
+                                    dbs.storyboard_notes = [x.strip() for x in storyboard_text.split("\n") if x.strip()]
+                                    dbs.list_of_shots = [x.strip() for x in shots_text.split("\n") if x.strip()]
+                                    dbs.intro_hook = intro_hook
+                                    dbs.outro_hook = outro_hook
+                                    
+                                    # Update legacy fields for compatibility
+                                    dbs.title = main_idea
+                                    dbs.hook = video_hook
+                                    dbs.beats = dbs.action_scenes
+                                    dbs.voiceover = script_guidance
+                                    
+                                    # Update compliance
+                                    content_text = " ".join([main_idea, video_hook, *dbs.action_scenes, script_guidance])
+                                    lvl, _ = score_script(content_text)
+                                    dbs.compliance = lvl
+                                else:
+                                    # Old format (backward compatibility)
+                                    dbs.title = title
+                                    dbs.hook = hook
+                                    dbs.beats = [x.strip() for x in beats_text.split("\n") if x.strip()]
+                                    dbs.voiceover = voiceover
+                                    dbs.caption = caption
+                                    # Parse hashtags from space-separated input
+                                    dbs.hashtags = [x.strip() for x in hashtags.split() if x.strip()]
+                                    dbs.cta = cta
+                                    
+                                    # Update compliance
+                                    lvl, _ = score_script(blob_from(dbs.model_dump()))
+                                    dbs.compliance = lvl
                                 
                                 ses.add(dbs)
                                 ses.commit()
@@ -722,8 +840,16 @@ with tab2:
     filter_col1, filter_col2, filter_col3 = st.columns(3)
     
     with filter_col1:
-        creator_filter = st.selectbox("Creator", ["All"] + ["Creator A", "Emily"])
-        content_filter = st.selectbox("Content Type", ["All"] + ["thirst-trap", "lifestyle", "comedy", "prank", "fake-podcast", "trend-adaptation"])
+        # Get dynamic creator options from database
+        with get_session() as ses:
+            creators = list(ses.exec(select(Script.creator).distinct()))
+            creator_options = ["All"] + [c for c in creators if c]
+            
+            content_types = list(ses.exec(select(Script.content_type).distinct()))
+            content_options = ["All"] + [ct for ct in content_types if ct]
+        
+        creator_filter = st.selectbox("Creator", creator_options)
+        content_filter = st.selectbox("Content Type", content_options)
     
     with filter_col2:
         compliance_filter_adv = st.selectbox("Compliance Status", ["All", "PASS", "WARN", "FAIL"])
