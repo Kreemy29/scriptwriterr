@@ -121,7 +121,7 @@ with st.sidebar:
         )
         
         # Tone is now handled by persona description
-        tone = persona  # Use the persona description as tone
+        tone = "playful"  # Default, will be overridden by persona in generation
         
         n = st.slider(
             "Number of drafts", 
@@ -345,7 +345,7 @@ with st.sidebar:
                     enhanced_boundaries += f"\n\nADVANCED GUIDANCE: {advanced_prompt}"
                 
                 # Generate scripts with enhanced RAG system
-                drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, tone, all_refs, n=n)
+                drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, persona, all_refs, n=n)
                 
                 progress_bar.progress(75)
                 status_text.text("💾 Saving to database...")
@@ -367,7 +367,7 @@ with st.sidebar:
                             s = Script(
                                 creator=creator,
                                 content_type=content_type,
-                                tone=tone,
+                                tone=persona,
                                 title=d.get("main_idea", "Generated Script"),
                                 hook=d.get("video_hook", ""),
                                 beats=d.get("action_scenes", []),
@@ -395,7 +395,7 @@ with st.sidebar:
                             # Old format (backward compatibility)
                             lvl, _ = score_script(" ".join([d.get("title",""), d.get("hook",""), *d.get("beats",[]), d.get("voiceover",""), d.get("caption",""), d.get("cta","")]))
                             s = Script(
-                                creator=creator, content_type=content_type, tone=tone,
+                                creator=creator, content_type=content_type, tone=persona,
                                 title=d["title"], hook=d["hook"], beats=d["beats"],
                                 voiceover=d["voiceover"], caption=d["caption"],
                                 hashtags=d.get("hashtags",[]), cta=d.get("cta",""),
