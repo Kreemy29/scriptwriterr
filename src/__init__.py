@@ -10,7 +10,6 @@ __author__ = "Kreemy29"
 __email__ = "your.email@example.com"
 
 # Core modules
-from .app import main
 from .models import Script, ModelProfile, Feedback
 from .db import get_session, create_tables
 from .rag_integration import generate_scripts_rag, generate_scripts_fast
@@ -23,7 +22,6 @@ from .compliance import ComplianceChecker
 from .dataset_manager import DatasetManager
 
 __all__ = [
-    "main",
     "Script",
     "ModelProfile", 
     "Feedback",
