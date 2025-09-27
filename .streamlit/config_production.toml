@@ -1,0 +1,41 @@
+# Streamlit Cloud Production Configuration
+# Optimized for cloud deployment
+
+[server]
+headless = true
+port = 8501
+address = "0.0.0.0"
+enableCORS = false
+enableXsrfProtection = true
+maxUploadSize = 200
+maxMessageSize = 200
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+
+[theme]
+primaryColor = "#667eea"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[client]
+showErrorDetails = false
+toolbarMode = "minimal"
+
+[runner]
+magicEnabled = true
+installTracer = false
+fixMatplotlib = true
+fastReruns = true
+
+[logger]
+level = "error"
+messageFormat = "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s"
+
+[global]
+developmentMode = false
+sharingMode = "off"
+showWarningOnDirectExecution = false

@@ -1,7 +1,10 @@
-# Environment and secrets
-.env
+# Streamlit secrets (NEVER commit these!)
 .streamlit/secrets.toml
-secrets.toml
+
+# Database files
+*.db
+studio.db
+studio_backup.db
 
 # Python cache
 __pycache__/
@@ -11,61 +14,63 @@ __pycache__/
 .Python
 *.so
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-studio.db
+# Environment variables
+.env
+.venv
+venv/
+ENV/
+env/
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
-logs/*.log
+logs/
 
 # Temporary files
 *.tmp
 *.temp
-
-# Data files (keep structure but not actual data)
-*.jsonl
-*.json
-data/raw/*
-data/processed/*
-data/exports/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!data/exports/.gitkeep
-
-# Deployment files
-quick-deploy.bat
-
-# Duplicate scriptwriter folder (we'll use the main one)
-scriptwriter/
-
-# Import scripts (temporary)
-import_*.py
-clear_and_import_data.py
-
-# Test coverage
-.coverage
-htmlcov/
-.pytest_cache/
+temp/
+tmp/
 
 # Build artifacts
 build/
 dist/
 *.egg-info/
 
-# Virtual environment
-venv/
-env/
-ENV/
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Data files (uncomment if you want to exclude data)
+# data/raw/
+# data/processed/
+# *.jsonl
+# *.json
+
+# Deployment artifacts
+ngrok.exe
+ngrok.zip

@@ -6,8 +6,26 @@ from sqlmodel import SQLModel, create_engine, Session, select, delete
 from datetime import datetime
 
 # ---- Configure DB ----
+# For cloud deployment, ensure database persists in the correct location
 DB_URL = os.environ.get("DB_URL", "sqlite:///studio.db")
-engine = create_engine(DB_URL, echo=False)
+
+# Cloud deployment optimizations
+engine_kwargs = {
+    "echo": False,
+    "pool_pre_ping": True,  # Verify connections before use
+    "pool_recycle": 300,    # Recycle connections every 5 minutes
+}
+
+# SQLite-specific optimizations for cloud deployment
+if DB_URL.startswith("sqlite"):
+    engine_kwargs.update({
+        "connect_args": {
+            "check_same_thread": False,  # Allow multi-threading
+            "timeout": 20,               # 20 second timeout
+        }
+    })
+
+engine = create_engine(DB_URL, **engine_kwargs)
 
 # ---- Models ----
 from models import Script, Rating  # make sure Script has: is_reference: bool, plus the other fields
