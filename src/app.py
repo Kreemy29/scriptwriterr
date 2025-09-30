@@ -98,6 +98,10 @@ if 'generation_step' not in st.session_state:
     st.session_state.generation_step = 'setup'
 if 'generated_count' not in st.session_state:
     st.session_state.generated_count = 0
+if 'pending_drafts' not in st.session_state:
+    st.session_state.pending_drafts = []
+if 'generation_params' not in st.session_state:
+    st.session_state.generation_params = {}
 
 # Sidebar - Generation Controls
 with st.sidebar:
@@ -277,6 +281,11 @@ with st.sidebar:
     
     st.info(f"🤖 AI will use {ref_count} database references + your extras")
     
+    # Show pending drafts status
+    pending_count = len(st.session_state.get('pending_drafts', []))
+    if pending_count > 0:
+        st.warning(f"⚠️ {pending_count} scripts pending approval!")
+    
     generate_button = st.button(
         "🚀 Generate Scripts", 
         type="primary",
@@ -348,69 +357,82 @@ with st.sidebar:
                 drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, persona, all_refs, n=n)
                 
                 progress_bar.progress(75)
-                status_text.text("💾 Saving to database...")
+                status_text.text("📋 Scripts generated - awaiting approval...")
                 
-                # Save to database
-                with get_session() as ses:
-                    for d in drafts:
-                        # Handle both old and new format for compliance scoring
-                        if "model_name" in d:
-                            # New template format
-                            content_text = " ".join([
-                                d.get("main_idea", ""),
-                                d.get("video_hook", ""),
-                                *d.get("action_scenes", []),
-                                d.get("script_guidance", "")
-                            ])
-                            lvl, _ = score_script(content_text)
-                            
-                            s = Script(
-                                creator=creator,
-                                content_type=content_type,
-                                tone=persona,
-                                title=d.get("main_idea", "Generated Script"),
-                                hook=d.get("video_hook", ""),
-                                beats=d.get("action_scenes", []),
-                                voiceover=d.get("script_guidance", ""),
-                                caption="",  # No longer used
-                                hashtags=[],  # No longer used
-                                cta="",  # No longer used
-                                compliance=lvl,
-                                source="ai",
-                                # New template fields
-                                model_name=d.get("model_name", creator),
-                                video_type=d.get("video_type", content_type),
-                                video_length=d.get("video_length", "15-25s"),
-                                cut_lengths=d.get("cut_lengths", "Quick cuts"),
-                                video_hook=d.get("video_hook", ""),
-                                main_idea=d.get("main_idea", ""),
-                                action_scenes=d.get("action_scenes", []),
-                                script_guidance=d.get("script_guidance", ""),
-                                storyboard_notes=d.get("storyboard_notes", []),
-                                intro_hook=d.get("intro_hook", ""),
-                                outro_hook=d.get("outro_hook", ""),
-                                list_of_shots=d.get("list_of_shots", [])
-                            )
-                        else:
-                            # Old format (backward compatibility)
-                            lvl, _ = score_script(" ".join([d.get("title",""), d.get("hook",""), *d.get("beats",[]), d.get("voiceover",""), d.get("caption",""), d.get("cta","")]))
-                            s = Script(
-                                creator=creator, content_type=content_type, tone=persona,
-                                title=d["title"], hook=d["hook"], beats=d["beats"],
-                                voiceover=d["voiceover"], caption=d["caption"],
-                                hashtags=d.get("hashtags",[]), cta=d.get("cta",""),
-                                compliance=lvl, source="ai"
-                            )
-                        ses.add(s)
-                    ses.commit()
-                    print(f"✅ Saved script to database: creator={creator}, content_type={content_type}")
+                # Store drafts in session state for approval (don't save to DB yet)
+                st.session_state.pending_drafts = []
+                st.session_state.generation_params = {
+                    "creator": creator,
+                    "content_type": content_type,
+                    "persona": persona
+                }
+                
+                for d in drafts:
+                    # Handle both old and new format for compliance scoring
+                    if "model_name" in d:
+                        # New template format
+                        content_text = " ".join([
+                            d.get("main_idea", ""),
+                            d.get("video_hook", ""),
+                            *d.get("action_scenes", []),
+                            d.get("script_guidance", "")
+                        ])
+                        lvl, _ = score_script(content_text)
+                        
+                        script_data = {
+                            "creator": creator,
+                            "content_type": content_type,
+                            "tone": persona,
+                            "title": d.get("main_idea", "Generated Script"),
+                            "hook": d.get("video_hook", ""),
+                            "beats": d.get("action_scenes", []),
+                            "voiceover": d.get("script_guidance", ""),
+                            "caption": "",  # No longer used
+                            "hashtags": [],  # No longer used
+                            "cta": "",  # No longer used
+                            "compliance": lvl,
+                            "source": "ai",
+                            # New template fields
+                            "model_name": d.get("model_name", creator),
+                            "video_type": d.get("video_type", content_type),
+                            "video_length": d.get("video_length", "15-25s"),
+                            "cut_lengths": d.get("cut_lengths", "Quick cuts"),
+                            "video_hook": d.get("video_hook", ""),
+                            "main_idea": d.get("main_idea", ""),
+                            "action_scenes": d.get("action_scenes", []),
+                            "script_guidance": d.get("script_guidance", ""),
+                            "storyboard_notes": d.get("storyboard_notes", []),
+                            "intro_hook": d.get("intro_hook", ""),
+                            "outro_hook": d.get("outro_hook", ""),
+                            "list_of_shots": d.get("list_of_shots", [])
+                        }
+                    else:
+                        # Old format (backward compatibility)
+                        lvl, _ = score_script(" ".join([d.get("title",""), d.get("hook",""), *d.get("beats",[]), d.get("voiceover",""), d.get("caption",""), d.get("cta","")]))
+                        script_data = {
+                            "creator": creator,
+                            "content_type": content_type,
+                            "tone": persona,
+                            "title": d["title"],
+                            "hook": d["hook"],
+                            "beats": d["beats"],
+                            "voiceover": d["voiceover"],
+                            "caption": d["caption"],
+                            "hashtags": d.get("hashtags",[]),
+                            "cta": d.get("cta",""),
+                            "compliance": lvl,
+                            "source": "ai"
+                        }
+                    
+                    st.session_state.pending_drafts.append(script_data)
+                
+                print(f"Generated {len(drafts)} scripts awaiting approval")
                 
                 progress_bar.progress(100)
                 status_text.text("")
                 progress_bar.empty()
                 
-                st.session_state.generated_count += len(drafts)
-                st.success(f"🎉 Generated {len(drafts)} scripts successfully!")
+                st.success(f"📋 Generated {len(drafts)} scripts - review and approve below!")
                 
                 # Show which refs were used and advanced options
                 col1, col2 = st.columns(2)
@@ -426,14 +448,12 @@ with st.sidebar:
                         st.write(f"• {advanced_prompt[:100]}...")
                     st.write(f"**📊 Settings:** {tone} • {content_type}")
                 
-                st.balloons()
-                
-                # Auto-refresh to show new drafts
+                # Auto-refresh to show pending drafts
                 time.sleep(1)
                 st.rerun()
                 
             except Exception as e:
-                st.error(f"❌ Generation failed: {str(e)}")
+                st.error(f"Generation failed: {str(e)}")
                 st.write("💡 Try adjusting your parameters or check your API key")
     
     # Quick Actions
@@ -463,47 +483,132 @@ with st.sidebar:
 tab1, tab2, tab3 = st.tabs(["📝 Draft Review", "🎯 Filters", "📊 Analytics"])
 
 with tab1:
-    # Load drafts
-    with get_session() as ses:
-        q = select(Script).where(Script.creator == creator, Script.source == "ai")
-        all_drafts = list(ses.exec(q))
-        print(f"🔍 Loading drafts for creator='{creator}': found {len(all_drafts)} scripts")
+    # Check for pending drafts first
+    pending_drafts = st.session_state.get('pending_drafts', [])
     
-    if not all_drafts:
-        st.markdown("""
-        <div style="text-align: center; padding: 3rem;">
-            <h3>🎬 Ready to Create Amazing Scripts?</h3>
-            <p style="font-size: 1.2rem; color: #666;">
-                👈 Use the sidebar to generate your first batch of AI scripts<br>
-                🤖 The AI will learn from successful examples in the database<br>
-                ✨ Then review, edit, and perfect your scripts here
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    if pending_drafts:
+        st.subheader(f"📋 Pending Scripts ({len(pending_drafts)}) - Approve or Reject")
+        st.info("⚠️ These scripts are NOT saved yet. Review and approve the ones you like!")
         
-        if st.session_state.generated_count > 0:
-            st.info(f"🎉 You've generated {st.session_state.generated_count} scripts so far! Use filters to find them.")
+        # Approval interface
+        for i, draft in enumerate(pending_drafts):
+            with st.expander(f"Script {i+1}: {draft['title']}", expanded=(i==0)):
+                # Show script content
+                col1, col2 = st.columns([0.7, 0.3])
+                
+                with col1:
+                    st.markdown(f"**Title:** {draft['title']}")
+                    if draft.get('hook'):
+                        st.markdown(f"**Hook:** {draft['hook']}")
+                    if draft.get('beats'):
+                        st.markdown("**Beats:**")
+                        for j, beat in enumerate(draft['beats'], 1):
+                            st.write(f"{j}. {beat}")
+                    if draft.get('voiceover'):
+                        st.markdown(f"**Voiceover:** {draft['voiceover']}")
+                    if draft.get('script_guidance'):
+                        st.markdown(f"**Script Guidance:** {draft['script_guidance']}")
+                    
+                    # Show compliance
+                    compliance_color = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}.get(draft['compliance'], "UNKNOWN")
+                    st.markdown(f"**Compliance:** {compliance_color} {draft['compliance'].upper()}")
+                
+                with col2:
+                    st.markdown("**Actions:**")
+                    
+                    # Approve button
+                    if st.button(f"Approve", key=f"approve_{i}", type="primary", use_container_width=True):
+                        # Save to database
+                        with get_session() as ses:
+                            script = Script(**draft)
+                            ses.add(script)
+                            ses.commit()
+                        
+                        # Remove from pending
+                        st.session_state.pending_drafts.pop(i)
+                        st.success("Script approved and saved!")
+                        st.rerun()
+                    
+                    # Reject button
+                    if st.button(f"Reject", key=f"reject_{i}", use_container_width=True):
+                        # Remove from pending
+                        st.session_state.pending_drafts.pop(i)
+                        st.info("Script rejected")
+                        st.rerun()
+                    
+                    # Edit button (optional)
+                    if st.button(f"✏️ Edit & Approve", key=f"edit_{i}", use_container_width=True):
+                        st.session_state[f'editing_draft_{i}'] = True
+                        st.rerun()
+        
+        # Bulk actions
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("Approve All", type="primary", use_container_width=True):
+                with get_session() as ses:
+                    for draft in pending_drafts:
+                        script = Script(**draft)
+                        ses.add(script)
+                    ses.commit()
+                
+                approved_count = len(pending_drafts)
+                st.session_state.pending_drafts = []
+                st.success(f"Approved and saved {approved_count} scripts!")
+                st.rerun()
+        
+        with col2:
+            if st.button("Reject All", use_container_width=True):
+                rejected_count = len(pending_drafts)
+                st.session_state.pending_drafts = []
+                st.info(f"Rejected {rejected_count} scripts")
+                st.rerun()
+        
+        with col3:
+            if st.button("🔄 Generate More", use_container_width=True):
+                # Keep existing drafts, just scroll up to generate more
+                st.info("👆 Use the sidebar to generate more scripts")
+    
     else:
-        # Draft management
-        col1, col2 = st.columns([0.4, 0.6], gap="large")
+        # Load approved drafts from database
+        with get_session() as ses:
+            q = select(Script).where(Script.creator == creator, Script.source == "ai")
+            all_drafts = list(ses.exec(q))
+            print(f"Loading approved drafts for creator='{creator}': found {len(all_drafts)} scripts")
+        
+        if not all_drafts:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem;">
+                <h3>🎬 Ready to Create Amazing Scripts?</h3>
+                <p style="font-size: 1.2rem; color: #666;">
+                    👈 Use the sidebar to generate your first batch of AI scripts<br>
+                    🤖 The AI will learn from successful examples in the database<br>
+                    ✨ Review and approve scripts before they're saved
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # Show approved scripts management
+            st.subheader(f"Approved Scripts ({len(all_drafts)})")
+            
+            # Draft management
+            col1, col2 = st.columns([0.4, 0.6], gap="large")
         
         with col1:
             st.subheader(f"📋 Your Drafts ({len(all_drafts)})")
             
             # Quick filters
-            filter_col1, filter_col2 = st.columns(2)
-            with filter_col1:
-                compliance_filter = st.selectbox(
-                    "Compliance", 
-                    ["All", "PASS", "WARN", "FAIL"],
-                    key="compliance_filter"
-                )
-            with filter_col2:
-                sort_by = st.selectbox(
-                    "Sort by", 
-                    ["Newest", "Oldest", "Title"],
-                    key="sort_filter"
-                )
+            compliance_filter = st.selectbox(
+                "Compliance", 
+                ["All", "PASS", "WARN", "FAIL"],
+                key="compliance_filter"
+            )
+            sort_by = st.selectbox(
+                "Sort by", 
+                ["Newest", "Oldest", "Title"],
+                key="sort_filter"
+            )
             
             # Apply filters
             filtered_drafts = all_drafts
@@ -524,10 +629,10 @@ with tab1:
             for draft in filtered_drafts:
                 # Compliance color coding
                 compliance_color = {
-                    "pass": "🟢",
-                    "warn": "🟡", 
-                    "fail": "🔴"
-                }.get(draft.compliance, "⚪")
+                    "pass": "PASS",
+                    "warn": "WARN", 
+                    "fail": "FAIL"
+                }.get(draft.compliance, "UNKNOWN")
                 
                 # Create card
                 with st.container(border=True):
@@ -684,7 +789,7 @@ with tab1:
                                 ses.add(dbs)
                                 ses.commit()
                             
-                            st.success("✅ Script saved successfully!")
+                            st.success("Script saved successfully!")
                             time.sleep(1)
                             st.rerun()
                     
@@ -734,7 +839,7 @@ with tab1:
                                     ses.commit()
                                     ses.add(Revision(script_id=dbs.id, label="Auto safer", field="caption", before=before, after=dbs.caption))
                                     ses.commit()
-                                st.success("✅ Content made safer!")
+                                st.success("Content made safer!")
                                 st.rerun()
                         
                         if st.button("✨ More Playful", use_container_width=True):

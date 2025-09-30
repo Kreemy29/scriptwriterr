@@ -164,22 +164,22 @@ JSON array ONLY.
         end = out.rfind("]")
         if start >= 0 and end > start:
             json_str = out[start:end+1]
-            print(f"🔍 Raw JSON output: {json_str[:200]}...")
+            print(f"Raw JSON output: {json_str[:200]}...")
             try:
                 templates = json.loads(json_str)
-                print(f"✨ Generated {len(templates)} video templates for {video_type}")
+                print(f"Generated {len(templates)} video templates for {video_type}")
                 return templates[:n]
             except json.JSONDecodeError as e:
-                print(f"❌ JSON parsing error: {e}")
-                print(f"🔍 Problematic JSON: {json_str}")
+                print(f"JSON parsing error: {e}")
+                print(f"Problematic JSON: {json_str}")
                 return []
         else:
-            print(f"❌ Failed to find JSON array in output")
-            print(f"🔍 Raw output: {out[:200]}...")
+            print(f"Failed to find JSON array in output")
+            print(f"Raw output: {out[:200]}...")
             return []
             
     except Exception as e:
-        print(f"❌ Template generation failed: {e}")
+        print(f"Template generation failed: {e}")
         return []
 
 def generate_scripts(persona, boundaries, content_type, tone, refs, n=6):

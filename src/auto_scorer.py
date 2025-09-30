@@ -231,7 +231,7 @@ def auto_score_pipeline():
     new_scores = scorer.batch_score_recent(hours=24)
     
     if new_scores:
-        print(f"\n📊 Auto-scoring Results ({len(new_scores)} scripts):")
+        print(f"\nAuto-scoring Results ({len(new_scores)} scripts):")
         for score in new_scores:
             print(f"Script {score.script_id}: {score.overall:.1f}/5.0 (confidence: {score.confidence:.2f})")
     else:

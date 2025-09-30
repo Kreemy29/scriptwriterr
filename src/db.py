@@ -260,19 +260,43 @@ def _recompute_script_aggregates(ses: Session, script_id: int) -> None:
     ses.add(s)
 
 # ---- Public: Reference retrieval for generation ----
-def extract_snippets_from_script(s: Script, max_lines: int = 3) -> List[str]:
+def extract_snippets_from_script(s: Script, max_lines: int = 4) -> List[str]:
     items: List[str] = []
-    if s.hook:
+    
+    # Prioritize hook content (most important)
+    if s.hook and len(s.hook.strip()) > 10:
         items.append(s.hook.strip())
+    
+    # Add video_hook if different from hook
+    if hasattr(s, 'video_hook') and s.video_hook and s.video_hook != s.hook:
+        if len(s.video_hook.strip()) > 10:
+            items.append(s.video_hook.strip())
+    
+    # Add best beats (filter out technical beats)
     if s.beats:
-        items.extend([b.strip() for b in s.beats[:2]])  # first 1–2 beats
-    if s.caption:
-        items.append(s.caption.strip()[:120])
-    # dedupe while preserving order
+        good_beats = []
+        for beat in s.beats[:4]:  # Check first 4 beats
+            beat = beat.strip()
+            if (len(beat) > 20 and 
+                not beat.lower().startswith(('shot of', 'cut to', 'close-up', 'wide shot')) and
+                not any(x in beat.lower() for x in ['00:', 'camera', 'lighting', 'audio'])):
+                good_beats.append(beat)
+        items.extend(good_beats[:2])  # Take best 2 beats
+    
+    # Add caption if it's substantial
+    if s.caption and len(s.caption.strip()) > 20:
+        items.append(s.caption.strip()[:150])
+    
+    # Add voiceover content if meaningful
+    if s.voiceover and len(s.voiceover.strip()) > 20:
+        items.append(s.voiceover.strip()[:150])
+    
+    # Dedupe while preserving order
     seen, uniq = set(), []
     for it in items:
-        if it and it not in seen:
+        if it and it not in seen and len(it.strip()) > 15:
             uniq.append(it); seen.add(it)
+    
     return uniq[:max_lines]
 
 def get_library_refs(creator: str, content_type: str, k: int = 6) -> List[str]:
@@ -352,14 +376,25 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
     for s in chosen_scripts:
         snippets.extend(extract_snippets_from_script(s))
     
-    # Filter out garbage snippets (too short, metadata fragments, etc.)
+    # Filter out garbage snippets and prioritize quality content
     clean_snippets = []
     for sn in snippets:
-        if (len(sn.strip()) > 15 and 
-            len(sn.strip()) < 200 and 
-            not any(x in sn.lower() for x in ["brand fit", "tl;dr", "meta", "accessibility", "quick text beats", "beat (00:00"]) and
+        if (len(sn.strip()) > 20 and  # Increased minimum length
+            len(sn.strip()) < 300 and  # Increased maximum length
+            not any(x in sn.lower() for x in [
+                "brand fit", "tl;dr", "meta", "accessibility", "quick text beats", 
+                "beat (00:00", "trending vo:", "audio:", "text overlay:", "shot of"
+            ]) and
             not sn.strip().startswith(";") and
-            not sn.strip().startswith(":")):
+            not sn.strip().startswith(":") and
+            not sn.strip().startswith("(") and
+            # Prioritize hook-like content
+            ("pov:" in sn.lower() or 
+             "when " in sn.lower() or 
+             "me " in sn.lower() or
+             "rating " in sn.lower() or
+             "explaining " in sn.lower() or
+             len(sn.strip()) > 50)):  # Or longer content
             clean_snippets.append(sn.strip())
     
     # If we don't have enough clean snippets, use fallback
@@ -380,37 +415,57 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
     return out[:8]
 
 def _get_fallback_refs(content_type: str) -> List[str]:
-    """Provide high-quality fallback references when database refs are poor"""
+    """Provide seductive fallback references targeting male audiences without promotion"""
     fallback_refs = {
         "skit": [
-            "POV: When he says he's good with his hands but you're about to test his skills",
-            "Shot of feet dangling in pool, toes pointed, gently swirling water", 
-            "Quick cut to sunscreen bottle being squeezed with excessive force",
-            "Close-up on pool floatie with 'Queen' text partially deflated",
-            "When the 'deep end' of his skills turns out to be three feet max",
-            "Comment 'POOL' if you'd test these waters",
-            "Tag your summer fling (and lifeguard)",
-            "Save for your next poolside mood"
+            "POV: You start your workout innocently, but then realize every exercise is just an excuse to show off your body in the most provocative ways possible",
+            "Rating my lingerie by how quickly it makes you hard, starting with cute then escalating to absolutely sinful", 
+            "When you're getting ready but every move is designed to drive men wild - watch me slowly reveal exactly what I'm doing to you",
+            "My morning routine that's actually just me being a tease for 60 seconds straight - coffee, stretching, and making you think dirty thoughts",
+            "Starting to explain productivity tips but it turns into a masterclass in how to be irresistibly fuckable during work calls",
+            "When you ask what I'm wearing and I decide to show you instead - but fair warning, it's going to make you lose your mind",
+            "Comment 'HARD' if you can't handle watching this without getting turned on",
+            "Save this for when you need motivation to hit the gym - but warning, you might get too distracted to actually work out"
         ],
         "thirst-trap": [
-            "POV: When you catch him staring but he thinks you don't notice",
-            "Shot of slow hair flip with knowing smile",
-            "Quick cut to adjusting jewelry while maintaining eye contact", 
-            "Close-up on lip bite with raised eyebrow",
-            "When the confidence is higher than your standards",
-            "Comment 'NOTICED' if you've been there",
-            "Tag someone who needs to work on their subtlety",
-            "Save for your next confidence boost"
+            "POV: You start confident but then slowly realize exactly what you're doing to them - and it turns you on even more",
+            "Rating my outfits by how hard they make you, starting innocent then escalating to the ones that make you lose control",
+            "When you think you're taking a 'casual' selfie but then catch yourself being absolutely sinful in the mirror", 
+            "My mirror knows all my dirty secrets and so do you now - watch as I slowly reveal why that's so fucking dangerous",
+            "The art of looking effortless while being absolutely intentional - a masterclass in making men desperate for you",
+            "When your curves start doing all the talking and making men beg for more - and you love every second of it",
+            "Comment 'OBSESSED' if you've been staring and can't look away from this slow seduction",
+            "Save this for your next confidence boost - but warning: it might make you too confident and too fucking irresistible"
+        ],
+        "talking-style": [
+            "Let me explain why your girlfriend is worried about your Instagram activity - and why she should be",
+            "The psychology behind why you keep coming back to my content - spoiler: it's because I turn you on",
+            "Rating my pickup lines by how quickly they'd make you hard - and I know they work", 
+            "Why I'm the reason you're always checking your phone - and getting distracted at work",
+            "The science of seduction: a masterclass in making men desperate for me",
+            "Breaking down the male gaze and how I use it to make you obsessed with me",
+            "Comment your most honest dirty thought right now - I dare you",
+            "Share this if you're brave enough to admit you're hooked"
         ],
         "reaction-prank": [
-            "POV: When you prank him but his reaction is better than expected",
-            "Shot of him jumping back with exaggerated surprise",
-            "Quick cut to him trying to play it cool but failing",
-            "Close-up on his face going from shock to laughter",
-            "When the prank backfires in the best way possible",
-            "Comment 'PRANKED' if you've been there",
-            "Tag your favorite prank victim",
-            "Save for your next harmless chaos"
+            "POV: You try to act unaffected but your body language gives you away",
+            "Rating men's reactions to my content by how obvious they are",
+            "When you think you're being subtle but I notice everything", 
+            "My favorite game: seeing how long you can maintain eye contact",
+            "The moment you realize I'm doing this on purpose",
+            "When your poker face fails and I catch you looking",
+            "Comment 'GUILTY' if I caught you",
+            "Tag someone who needs to work on their subtlety"
+        ],
+        "lifestyle": [
+            "My self-care routine: skincare, yoga, and looking absolutely stunning",
+            "Rating my daily activities by how much they'd interest you",
+            "POV: Your idea of productivity is watching me be productive", 
+            "My morning routine but make it seductive",
+            "The art of looking good while doing absolutely nothing",
+            "When your lifestyle is your brand and your brand is irresistible",
+            "Comment what part of my routine you'd want to join",
+            "Save this for motivation to upgrade your own routine"
         ]
     }
     
