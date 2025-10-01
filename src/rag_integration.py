@@ -461,12 +461,12 @@ def generate_scripts_fast(persona: str,
     hook_style = ""
     if spicy_hooks:
         hook_style = """
-SPICY HOOKS (Visual/Suggestive):
-- "Watch my ass bounce while I pretend to work out"
-- "POV: Every move I make is designed to turn you on"
-- "The way my tits shake when I run to the camera"
-- "Bending over 'accidentally' while you watch"
-- "My curves doing all the talking in this outfit"
+SPICY HOOKS (Dark Humor/Edgy):
+- "This trend is actually dystopian"
+- "Nobody asked for this reality"
+- "Plot twist: we're all doomed"
+- "This is unhinged behavior"
+- "Society has peaked (derogatory)"
 """
     else:
         hook_style = """
@@ -478,57 +478,57 @@ TRADITIONAL HOOKS:
 - "This is why I love being single"
 """
 
-    # Enhanced system prompt for SEDUCTIVE ADULT CONTENT targeting male audiences
-    system = f"""You write seductive, sexually appealing Instagram Reels targeting male audiences.
+    # Enhanced system prompt for DARK HUMOR & POP CULTURE SATIRE
+    system = f"""You write clever, witty Instagram Reels with dark humor, pop culture satire, and college-level wit.
 
-CRITICAL: SOLO SEDUCTIVE CONTENT - model alone, creating sexual appeal for male viewers.
+CRITICAL: INTELLIGENT COMEDY - sophisticated humor that's edgy, satirical, and culturally aware.
 
 {hook_style}
 
 CONTENT TYPE SPECIFIC RULES:
-- SKIT: Visual comedy/scenarios, voiceover should be EMPTY (no script), hooks should be actual hooks
-- TALKING-STYLE: Model talks DIRECTLY TO CAMERA like realcarlyjane/realmarciereeves, voiceover contains the script, SINGLE SHOT ONLY, NO storylines, NO cuts, authentic direct communication
-- THIRST-TRAP: Pure visual appeal, voiceover should be EMPTY, focus on body/poses
+- SKIT: Visual comedy/scenarios with dark humor twists, voiceover should be EMPTY (no script), hooks should be actual hooks
+- TALKING-STYLE: Model talks DIRECTLY TO CAMERA with satirical commentary, voiceover contains the script, SINGLE SHOT ONLY, NO storylines, authentic direct communication
+- THIRST-TRAP: Subvert expectations with dark humor or pop culture references, voiceover should be EMPTY
 
 TALKING-STYLE SPECIFIC REQUIREMENTS:
 - ONE CONTINUOUS SHOT: No cuts, no scene changes, no storylines
-- DIRECT TO CAMERA: Model looks at and talks to the viewer directly
-- AUTHENTIC COMMUNICATION: Real, conversational tone like realcarlyjane/realmarciereeves
-- NO STORYLINES: Avoid narrative arcs, just direct communication
-- EXAMPLES: "Let me tell you why...", "Here's what I think about...", "You guys always ask me..."
+- DIRECT TO CAMERA: Model looks at and talks to the viewer directly with satirical tone
+- AUTHENTIC COMMUNICATION: Real, conversational but witty tone with cultural references
+- NO STORYLINES: Avoid narrative arcs, focus on sharp observations and commentary
+- EXAMPLES: "Let me explain why this trend is actually dystopian...", "Here's what nobody talks about...", "You guys think this is normal but..."
 
 HOOK FORMAT - CRITICAL:
 - Hook should be the ACTUAL HOOK text that appears on screen
-- NOT a description like "POV: You're just trying to buy groceries but..."
-- Should be short, punchy, attention-grabbing text
-- Examples: "Watch my ass bounce", "This outfit is dangerous", "Men can't handle this"
+- Should be witty, satirical, or darkly humorous
+- Examples: "This trend is unhinged", "Nobody asked for this reality", "Plot twist: we're all doomed"
 
 VOICEOVER FORMAT - CRITICAL:
 - SKIT/VISUAL content: voiceover should be EMPTY string ""
 - TALKING videos: voiceover contains what the model says to camera
 - THIRST-TRAP: voiceover should be EMPTY string ""
 
-SEDUCTIVE ELEMENTS WITH STORYTELLING:
-- BODY APPRECIATION: Reference curves, assets, physical appeal confidently - BUILD UP TO IT
-- SEXUAL CONFIDENCE: "I know what I'm doing to you" energy - REVEAL GRADUALLY  
-- TEASING DYNAMICS: Build anticipation and attraction - CREATE STORY ARCS
-- MALE GAZE AWARENESS: Acknowledge the effect on male viewers - USE MISDIRECTION
-- STRATEGIC CLOTHING: Revealing outfits, lingerie, wardrobe moments - ESCALATING REVEALS
-- NARRATIVE BUILDUP: Start innocent/normal, build tension, deliver satisfying payoff
-- PSYCHOLOGICAL ESCALATION: Each beat should be more seductive than the last
+DARK HUMOR & SATIRE ELEMENTS:
+- CULTURAL COMMENTARY: Reference current events, trends, social media culture with satirical edge
+- DARK TWISTS: Take innocent situations and reveal darker truths or absurdities
+- POP CULTURE REFERENCES: Reference movies, TV shows, memes, celebrities with clever twists
+- COLLEGE-LEVEL WIT: Sophisticated wordplay, cultural literacy, intelligent observations
+- SUBVERSIVE HUMOR: Challenge expectations, flip scripts, reveal hypocrisy
+- EXISTENTIAL COMEDY: Touch on modern life's absurdities, dating culture, social media reality
+- GENERATIONAL SATIRE: Comment on Gen Z/Millennial experiences with self-aware humor
 
-VISUAL SEDUCTION:
-- Actions should be sexually appealing while supporting the concept
-- Use clothing, poses, movements that enhance sexual appeal
-- Strategic reveals, teasing moments, confident body language
-- Every visual beat contributes to seductive narrative
+COMEDY STORYTELLING:
+- SETUP & PUNCHLINE: Build to clever reveals and unexpected twists
+- OBSERVATIONAL HUMOR: Point out absurdities in everyday life and social media
+- SATIRICAL EDGE: Mock trends, influencer culture, modern dating, social expectations
+- CULTURAL AWARENESS: Reference current events, viral moments, pop culture intelligently
+- DARK UNDERTONES: Find humor in uncomfortable truths about modern life
+- INTELLECTUAL HUMOR: Wordplay, cultural references, sophisticated jokes
 
-MALE AUDIENCE TARGETING - NO LIMITS:
-- Make men think "I need to see more of her right now"
-- Build raw sexual desire and arousal through explicit confidence
-- Create addictive, boundary-pushing entertainment
-- Appeal directly to male sexual fantasies without holding back
-- Focus on maximum sexual impact and arousal
+CONTENT SOPHISTICATION:
+- AVOID: Basic, juvenile, or cringe humor
+- EMBRACE: Sharp wit, cultural commentary, intelligent observations
+- REFERENCE: Current events, pop culture, social phenomena with satirical lens
+- SUBVERT: Common tropes and expectations with dark or clever twists
 
 NO RELATIONSHIP CONTENT: Avoid boyfriend, girlfriend, partner, dating scenarios
 - Focus on SOLO scenarios: model alone, interacting with objects, situations, or audience
