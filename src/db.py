@@ -73,16 +73,17 @@ def _add_sample_data():
             # Add a few sample scripts for reference
             sample_scripts = [
                 Script(
-                    title="Sample Workout Tease",
-                    hook="Watch my ass bounce during this 'workout'",
-                    beats=["Stretching in tight leggings", "Squats facing away from camera", "Wink at camera"],
+                    title="Sample Dark Humor Skit",
+                    hook="This trend is actually dystopian",
+                    beats=["Pretending to be productive", "Realizing it's all meaningless", "Existential crisis moment"],
                     voiceover="",
-                    caption="Just a casual workout session 😉",
-                    hashtags=["#workout", "#fitness", "#tease"],
-                    cta="Follow for more workouts",
+                    caption="Just another day in late-stage capitalism",
+                    hashtags=["#darkhumor", "#existential", "#relatable"],
+                    cta="Follow for more existential dread",
                     creator="Sample",
-                    content_type="thirst-trap",
-                    persona="confident",
+                    content_type="skit",
+                    tone="satirical",
+                    persona="darkly witty",
                     is_reference=True
                 )
             ]
@@ -92,7 +93,11 @@ def _add_sample_data():
             session.commit()
             print("Sample data added successfully")
     except Exception as e:
-        print(f"Error adding sample data: {e}")
+        # Handle Unicode encoding issues in error messages
+        try:
+            print(f"Error adding sample data: {e}")
+        except UnicodeEncodeError:
+            print("Error adding sample data: Unicode encoding issue")
 
 def clear_all_data() -> None:
     """Clear all data from the database"""
