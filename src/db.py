@@ -327,6 +327,14 @@ def extract_snippets_from_script(s: Script, max_lines: int = 4) -> List[str]:
         if len(s.video_hook.strip()) > 10:
             items.append(s.video_hook.strip())
     
+    # Add concept content (THIS WAS MISSING!)
+    if hasattr(s, 'concept') and s.concept and len(s.concept.strip()) > 20:
+        concept = s.concept.strip()
+        # Clean up concept content
+        if concept.lower().startswith('meta'):
+            concept = concept[4:].strip()  # Remove "Meta" prefix
+        items.append(concept[:200])  # Cap at 200 chars
+    
     # Add best beats (filter out technical beats more aggressively)
     if s.beats:
         good_beats = []
@@ -341,6 +349,10 @@ def extract_snippets_from_script(s: Script, max_lines: int = 4) -> List[str]:
     # Add caption if it's substantial
     if s.caption and len(s.caption.strip()) > 20:
         items.append(s.caption.strip()[:150])
+    
+    # Add retention_strategy if available (good for variety)
+    if hasattr(s, 'retention_strategy') and s.retention_strategy and len(s.retention_strategy.strip()) > 30:
+        items.append(s.retention_strategy.strip()[:150])
     
     # Add voiceover content if meaningful (handle Unicode issues)
     if s.voiceover and len(s.voiceover.strip()) > 20:
@@ -475,7 +487,11 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
              "explaining " in sn.lower() or
              "content concept:" in sn.lower() or
              "caption" in sn.lower() or
-             len(sn.strip()) > 30)):  # Or longer content (reduced from 50)
+             "fail" in sn.lower() or
+             "reveal" in sn.lower() or
+             "comedy" in sn.lower() or
+             "trending" in sn.lower() or
+             len(sn.strip()) > 25)):  # Or longer content (reduced from 30)
             clean_snippets.append(sn.strip())
     
     # If we don't have enough clean snippets, use fallback
