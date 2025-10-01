@@ -181,11 +181,19 @@ Reference snippets (inspire, don't copy):
 
 CRITICAL DIVERSITY REQUIREMENT: Generate {n} COMPLETELY DIFFERENT scripts. Each must have:
 - Different scenarios and situations (don't repeat the same setup)
-- Different hook styles (rotate: POV, question, reverse bait, challenge, storytelling)
+- Different hook styles (rotate: POV, question, reverse bait, challenge, storytelling, direct statement)
 - Different visual beats and actions (avoid similar movements/expressions)
 - Different humor approaches and angles (vary the comedy style)
 - Different settings and contexts (change locations/situations)
-- Vary the tone and style between scripts (some playful, some edgy, some witty)
+- Vary the tone and style between scripts (some playful, some edgy, some witty, some mysterious, some bold)
+
+MANDATORY VARIETY ELEMENTS:
+- DIFFERENT LOCATIONS: bedroom, kitchen, gym, bathroom, car, outdoors, office, mirror, couch, etc.
+- DIFFERENT ACTIVITIES: working out, getting ready, cooking, shopping, dancing, stretching, studying, etc.
+- DIFFERENT CLOTHING: lingerie, workout clothes, casual wear, formal dress, pajamas, towel, etc.
+- DIFFERENT MOODS: confident, playful, mysterious, dominant, teasing, innocent, bold, etc.
+- DIFFERENT CAMERA ANGLES: close-up, full body, mirror shot, over shoulder, lying down, standing, etc.
+- DIFFERENT TIMES: morning routine, night routine, getting ready, post-workout, lazy day, etc.
 
 NO RELATIONSHIP CONTENT: Avoid boyfriend, girlfriend, partner, dating scenarios
 - Focus on SOLO scenarios: model alone, interacting with objects, situations, or audience
@@ -251,11 +259,19 @@ Reference snippets (inspire, don't copy):
 
 CRITICAL DIVERSITY REQUIREMENT: Generate {n} COMPLETELY DIFFERENT scripts. Each must have:
 - Different scenarios and situations (don't repeat the same setup)
-- Different hook styles (rotate: POV, question, reverse bait, challenge, storytelling)
+- Different hook styles (rotate: POV, question, reverse bait, challenge, storytelling, direct statement)
 - Different visual beats and actions (avoid similar movements/expressions)
 - Different humor approaches and angles (vary the comedy style)
 - Different settings and contexts (change locations/situations)
-- Vary the tone and style between scripts (some playful, some edgy, some witty)
+- Vary the tone and style between scripts (some playful, some edgy, some witty, some mysterious, some bold)
+
+MANDATORY VARIETY ELEMENTS:
+- DIFFERENT LOCATIONS: bedroom, kitchen, gym, bathroom, car, outdoors, office, mirror, couch, etc.
+- DIFFERENT ACTIVITIES: working out, getting ready, cooking, shopping, dancing, stretching, studying, etc.
+- DIFFERENT CLOTHING: lingerie, workout clothes, casual wear, formal dress, pajamas, towel, etc.
+- DIFFERENT MOODS: confident, playful, mysterious, dominant, teasing, innocent, bold, etc.
+- DIFFERENT CAMERA ANGLES: close-up, full body, mirror shot, over shoulder, lying down, standing, etc.
+- DIFFERENT TIMES: morning routine, night routine, getting ready, post-workout, lazy day, etc.
 
 NO RELATIONSHIP CONTENT: Avoid boyfriend, girlfriend, partner, dating scenarios
 - Focus on SOLO scenarios: model alone, interacting with objects, situations, or audience
@@ -533,28 +549,66 @@ Return ONLY JSON: an array of length {n}, each with {{title,hook,beats,voiceover
     seed_variation = random.randint(1, 1000)
     
     # Much higher temperature range for maximum creativity and diversity
-    temp = 0.8 + random.uniform(0.0, 0.5)  # Randomize between 0.8-1.3 for maximum creativity
-    temp = max(0.8, min(1.3, temp))
+    temp = 0.9 + random.uniform(0.0, 0.6)  # Randomize between 0.9-1.5 for maximum creativity
+    temp = max(0.9, min(1.5, temp))
     
-    # Create user prompt with seed_variation
+    # Add additional randomization elements
+    creativity_boost = random.choice([
+        "MAXIMUM CREATIVITY MODE: Push all creative boundaries!",
+        "ULTRA DIVERSE MODE: Make each script completely unique!",
+        "VARIETY OVERDRIVE: No two scripts should be remotely similar!",
+        "CREATIVE CHAOS MODE: Break all patterns and expectations!",
+        "INNOVATION MODE: Create something never seen before!"
+    ])
+    
+    # Get dynamic reference snippets from actual database
+    from db import get_hybrid_refs
+    
+    # Use a mix of creators for maximum variety
+    all_creators = ["Emily Kent (@itsemilykent)", "Marcie", "Mia", "Anya", "anabolic.abi", "brookemonk", "lydiavioletofficial", "pupka_anupka"]
+    dynamic_refs = []
+    
+    # Randomly select creators and get refs from them
+    random.shuffle(all_creators)
+    for creator in all_creators[:4]:  # Use 4 different creators
+        creator_refs = get_hybrid_refs(creator, content_type, k=2)
+        dynamic_refs.extend(creator_refs)
+        if len(dynamic_refs) >= 8:
+            break
+    
+    # If still no dynamic refs, use varied fallback refs
+    if not dynamic_refs:
+        from db import _get_fallback_refs
+        all_fallback_refs = _get_fallback_refs(content_type)
+        # Randomly sample different refs each time
+        dynamic_refs = random.sample(all_fallback_refs, min(4, len(all_fallback_refs)))
+    
+    # Create user prompt with seed_variation and dynamic refs
     user_with_seed = f"""
 Persona: {persona}
 Content type: {content_type} | Tone: {tone}
 NO BOUNDARIES - PUSH ALL LIMITS
 
+{creativity_boost}
+
 Reference snippets (inspire, don't copy):
-- POV: You start your workout innocently, but then realize every exercise is just an excuse to show off your body in the most provocative ways possible
-- Rating my lingerie by how quickly it makes you hard, starting with cute then escalating to absolutely sinful
-- When you're getting ready but every move is designed to drive men wild - watch me slowly reveal exactly what I'm doing to you
-- My morning routine that's actually just me being a tease for 60 seconds straight - and I know exactly what I'm doing to you
+{chr(10).join(f"- {ref}" for ref in dynamic_refs[:4])}
 
 CRITICAL DIVERSITY REQUIREMENT: Generate {n} COMPLETELY DIFFERENT scripts. Each must have:
 - Different scenarios and situations (don't repeat the same setup)
-- Different hook styles (rotate: POV, question, reverse bait, challenge, storytelling)
+- Different hook styles (rotate: POV, question, reverse bait, challenge, storytelling, direct statement)
 - Different visual beats and actions (avoid similar movements/expressions)
 - Different humor approaches and angles (vary the comedy style)
 - Different settings and contexts (change locations/situations)
-- Vary the tone and style between scripts (some playful, some edgy, some witty)
+- Vary the tone and style between scripts (some playful, some edgy, some witty, some mysterious, some bold)
+
+MANDATORY VARIETY ELEMENTS:
+- DIFFERENT LOCATIONS: bedroom, kitchen, gym, bathroom, car, outdoors, office, mirror, couch, etc.
+- DIFFERENT ACTIVITIES: working out, getting ready, cooking, shopping, dancing, stretching, studying, etc.
+- DIFFERENT CLOTHING: lingerie, workout clothes, casual wear, formal dress, pajamas, towel, etc.
+- DIFFERENT MOODS: confident, playful, mysterious, dominant, teasing, innocent, bold, etc.
+- DIFFERENT CAMERA ANGLES: close-up, full body, mirror shot, over shoulder, lying down, standing, etc.
+- DIFFERENT TIMES: morning routine, night routine, getting ready, post-workout, lazy day, etc.
 
 NO RELATIONSHIP CONTENT: Avoid boyfriend, girlfriend, partner, dating scenarios
 - Focus on SOLO scenarios: model alone, interacting with objects, situations, or audience

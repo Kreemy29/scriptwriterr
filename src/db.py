@@ -9,8 +9,8 @@ from datetime import datetime
 # For cloud deployment, use in-memory database to avoid file system issues
 import streamlit as st
 
-# Check if running on Streamlit Cloud
-if hasattr(st, 'secrets') or os.environ.get('STREAMLIT_CLOUD'):
+# Check if running on Streamlit Cloud (more accurate detection)
+if os.environ.get('STREAMLIT_CLOUD') or (hasattr(st, 'secrets') and hasattr(st.secrets, '_file_paths')):
     # Use in-memory database for Streamlit Cloud
     DB_URL = "sqlite:///:memory:"
     print("Using in-memory database for Streamlit Cloud deployment")
@@ -327,14 +327,14 @@ def extract_snippets_from_script(s: Script, max_lines: int = 4) -> List[str]:
         if len(s.video_hook.strip()) > 10:
             items.append(s.video_hook.strip())
     
-    # Add best beats (filter out technical beats)
+    # Add best beats (filter out technical beats more aggressively)
     if s.beats:
         good_beats = []
         for beat in s.beats[:4]:  # Check first 4 beats
             beat = beat.strip()
             if (len(beat) > 20 and 
-                not beat.lower().startswith(('shot of', 'cut to', 'close-up', 'wide shot')) and
-                not any(x in beat.lower() for x in ['00:', 'camera', 'lighting', 'audio'])):
+                not beat.lower().startswith(('shot of', 'cut to', 'close-up', 'wide shot', '; quick', 'beat (')) and
+                not any(x in beat.lower() for x in ['00:', 'camera', 'lighting', 'audio', 'trending vo:', 'text overlay:'])):
                 good_beats.append(beat)
         items.extend(good_beats[:2])  # Take best 2 beats
     
@@ -342,9 +342,33 @@ def extract_snippets_from_script(s: Script, max_lines: int = 4) -> List[str]:
     if s.caption and len(s.caption.strip()) > 20:
         items.append(s.caption.strip()[:150])
     
-    # Add voiceover content if meaningful
+    # Add voiceover content if meaningful (handle Unicode issues)
     if s.voiceover and len(s.voiceover.strip()) > 20:
-        items.append(s.voiceover.strip()[:150])
+        try:
+            voiceover = s.voiceover.strip()[:150]
+            # Clean up common Unicode issues
+            voiceover = voiceover.replace('�', "'")
+            items.append(voiceover)
+        except:
+            pass  # Skip if Unicode issues
+    
+    # If we don't have enough content, create snippets from title
+    if len(items) < 2 and s.title:
+        title = s.title.replace('-', ' ').replace('_', ' ')
+        # Remove creator prefix
+        for prefix in ['emily-brief-', 'marcie-brief-', 'mia-brief-', 'anya-brief-']:
+            if title.lower().startswith(prefix):
+                title = title[len(prefix):]
+                break
+        
+        if len(title) > 10:
+            # Create content-style snippets from titles
+            if 'pov' in title.lower():
+                items.append(f"POV: {title.replace('pov', '').replace('POV', '').strip()}")
+            elif any(word in title.lower() for word in ['rating', 'explaining', 'trying']):
+                items.append(f"{title.strip()}")
+            else:
+                items.append(f"Content concept: {title.strip()}")
     
     # Dedupe while preserving order
     seen, uniq = set(), []
@@ -443,13 +467,15 @@ def get_hybrid_refs(creator: str, content_type: str, k: int = 6,
             not sn.strip().startswith(";") and
             not sn.strip().startswith(":") and
             not sn.strip().startswith("(") and
-            # Prioritize hook-like content
+            # Accept hook-like content or any substantial content
             ("pov:" in sn.lower() or 
              "when " in sn.lower() or 
              "me " in sn.lower() or
              "rating " in sn.lower() or
              "explaining " in sn.lower() or
-             len(sn.strip()) > 50)):  # Or longer content
+             "content concept:" in sn.lower() or
+             "caption" in sn.lower() or
+             len(sn.strip()) > 30)):  # Or longer content (reduced from 50)
             clean_snippets.append(sn.strip())
     
     # If we don't have enough clean snippets, use fallback
@@ -479,8 +505,20 @@ def _get_fallback_refs(content_type: str) -> List[str]:
             "My morning routine that's actually just me being a tease for 60 seconds straight - coffee, stretching, and making you think dirty thoughts",
             "Starting to explain productivity tips but it turns into a masterclass in how to be irresistibly fuckable during work calls",
             "When you ask what I'm wearing and I decide to show you instead - but fair warning, it's going to make you lose your mind",
-            "Comment 'HARD' if you can't handle watching this without getting turned on",
-            "Save this for when you need motivation to hit the gym - but warning, you might get too distracted to actually work out"
+            "POV: You're trying to study but I keep distracting you with strategic stretches and 'accidental' reveals",
+            "Rating my cooking skills but really just showing off how I move my hips while stirring",
+            "My skincare routine but every step is designed to make you think about touching my skin",
+            "POV: You're my personal trainer but I'm the one teaching you about flexibility",
+            "When I pretend to drop something just to bend over in front of you - and we both know it's intentional",
+            "My shower routine through frosted glass - you can see just enough to drive you crazy",
+            "POV: You're helping me move furniture but I keep finding excuses to get close and sweaty",
+            "Rating my outfits by how much they make you want to take them off me",
+            "My bedtime routine but I'm doing it knowing you're watching every move",
+            "POV: You're my Uber driver and I'm in the backseat doing things that make you lose focus",
+            "When I'm 'innocently' doing yoga but every pose is designed to show off my curves",
+            "My car wash technique that has nothing to do with cleaning and everything to do with getting wet",
+            "POV: You're my neighbor and I'm washing windows in a way that makes you forget your own name",
+            "Rating my dance moves by how much they make you want to join me"
         ],
         "thirst-trap": [
             "POV: You start confident but then slowly realize exactly what you're doing to them - and it turns you on even more",
@@ -499,8 +537,16 @@ def _get_fallback_refs(content_type: str) -> List[str]:
             "Why I'm the reason you're always checking your phone - and getting distracted at work",
             "The science of seduction: a masterclass in making men desperate for me",
             "Breaking down the male gaze and how I use it to make you obsessed with me",
-            "Comment your most honest dirty thought right now - I dare you",
-            "Share this if you're brave enough to admit you're hooked"
+            "Let me tell you about the time I caught someone staring and what I did about it",
+            "Here's why I dress the way I do - and it's exactly what you think",
+            "The difference between confidence and cockiness - and why mine drives you crazy",
+            "Why I love making men nervous - and the signs I look for",
+            "Let me explain what I'm really thinking when I look at you like that",
+            "The art of the tease - and why I'm better at it than anyone you know",
+            "Here's what I notice about men that they don't think I notice",
+            "Why I always win at this game - and you always lose",
+            "Let me break down exactly how I got your attention - step by step",
+            "The real reason I post these videos - and it's not what you think"
         ],
         "reaction-prank": [
             "POV: You try to act unaffected but your body language gives you away",

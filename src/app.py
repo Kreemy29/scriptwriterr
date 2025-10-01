@@ -280,18 +280,36 @@ with st.sidebar:
     
     # Map new content types to existing database types for compatibility
     content_type_mapping = {
-        "thirst-trap": "talking_style / thirst_trap",
-        "skit": "comedy",
-        "reaction-prank": "prank", 
-        "talking-style": "talking_style",
-        "lifestyle": "lifestyle",
-        "fake-podcast": "fake-podcast",
-        "dance-trend": "trend-adaptation",
-        "voice-tease-asmr": "talking_style"
+        "thirst-trap": "skit / thirst_trap",  # We have 5 of these
+        "skit": "skit",  # We have 43 of these!
+        "reaction-prank": "skit / reaction",  # We have 2 of these
+        "talking-style": "pov comedy skit",  # We have 1 of these
+        "lifestyle": "lifestyle",  # We have 1 of these
+        "fake-podcast": "skit",  # Fallback to main skit category
+        "dance-trend": "dance / thirst_trap",  # We have 1 of these
+        "voice-tease-asmr": "skit"  # Fallback to main skit category
     }
     
     mapped_content_type = content_type_mapping.get(content_type, content_type)
-    ref_count = len(get_hybrid_refs(creator, mapped_content_type, k=6))
+    
+    # Map creator for reference count display
+    creator_mapping = {
+        "Emily Kent": "Emily Kent (@itsemilykent)",
+        "Marcie": "Marcie", 
+        "Mia": "Mia",
+        "General Content": None
+    }
+    
+    if creator == "General Content":
+        # For General Content, count refs from all general creators
+        ref_count = 0
+        general_creators = ["Anya", "anabolic.abi", "brookemonk", "lydiavioletofficial", "pupka_anupka"]
+        for gen_creator in general_creators:
+            ref_count += len(get_hybrid_refs(gen_creator, mapped_content_type, k=2))
+        ref_count = min(ref_count, 6)  # Cap at 6 like the generation logic
+    else:
+        db_creator = creator_mapping.get(creator, creator)
+        ref_count = len(get_hybrid_refs(db_creator, mapped_content_type, k=6))
     
     st.info(f"🤖 AI will use {ref_count} database references + your extras")
     
@@ -313,14 +331,35 @@ with st.sidebar:
                 # Get manual refs from text area
                 manual_refs = [x.strip() for x in refs_text.split("\n") if x.strip()]
                 
+                # Map UI creator names to actual database creator names
+                creator_mapping = {
+                    "Emily Kent": "Emily Kent (@itsemilykent)",
+                    "Marcie": "Marcie", 
+                    "Mia": "Mia",
+                    "General Content": None  # Special case - use multiple creators
+                }
+                
                 # Get automatic refs from the selected creator's scripts in database
-                auto_refs = get_hybrid_refs(creator, mapped_content_type, k=6)
+                if creator == "General Content":
+                    # For General Content, get refs from all non-main creators for variety
+                    auto_refs = []
+                    general_creators = ["Anya", "anabolic.abi", "brookemonk", "lydiavioletofficial", "pupka_anupka"]
+                    for gen_creator in general_creators:
+                        creator_refs = get_hybrid_refs(gen_creator, mapped_content_type, k=2)
+                        auto_refs.extend(creator_refs)
+                        if len(auto_refs) >= 6:
+                            break
+                else:
+                    # For main creators, use their specific scripts
+                    db_creator = creator_mapping.get(creator, creator)
+                    auto_refs = get_hybrid_refs(db_creator, mapped_content_type, k=6)
                 
                 # If not enough refs from the specific creator, add some from other creators for diversity
                 if len(auto_refs) < 4:
                     other_creators = ["Emily Kent (@itsemilykent)", "Marcie", "Mia", "Anya"]
+                    current_db_creator = creator_mapping.get(creator, creator)
                     for other_creator in other_creators:
-                        if other_creator != creator and len(auto_refs) < 6:
+                        if other_creator != current_db_creator and len(auto_refs) < 6:
                             additional_refs = get_hybrid_refs(other_creator, mapped_content_type, k=2)
                             auto_refs.extend(additional_refs)
                 
@@ -368,7 +407,7 @@ with st.sidebar:
                     enhanced_boundaries += f"\n\nADVANCED GUIDANCE: {advanced_prompt}"
                 
                 # Generate scripts with enhanced RAG system
-                drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, persona, all_refs, n=n, spicy_hooks=spicy_hooks)
+                drafts = generate_scripts_rag(persona, enhanced_boundaries, mapped_content_type, persona, all_refs, n=n, spicy_hooks=spicy_hooks)
                 
                 progress_bar.progress(75)
                 status_text.text("📋 Scripts generated - awaiting approval...")
