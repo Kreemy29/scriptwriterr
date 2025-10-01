@@ -42,9 +42,10 @@ from models import Script, Rating  # make sure Script has: is_reference: bool, p
 
 # ---- Init / Session ----
 def init_db() -> None:
-    """Initialize database"""
+    """Initialize database with graceful handling of existing indexes"""
     try:
-        SQLModel.metadata.create_all(engine)
+        # Create tables with checkfirst=True to avoid duplicate index errors
+        SQLModel.metadata.create_all(engine, checkfirst=True)
         print("Database initialized successfully")
         
         # For in-memory database (Streamlit Cloud), add some sample data
@@ -52,8 +53,12 @@ def init_db() -> None:
             _add_sample_data()
             
     except Exception as e:
-        print(f"Database initialization error: {e}")
-        raise e  # Re-raise the error so the app can handle it
+        # Handle specific index already exists error gracefully
+        if "already exists" in str(e).lower() and "index" in str(e).lower():
+            print(f"Database already initialized (indexes exist): {e}")
+        else:
+            print(f"Database initialization error: {e}")
+            raise e  # Re-raise only if it's not an index error
 
 def _add_sample_data():
     """Add sample data for in-memory database"""
