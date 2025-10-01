@@ -25,7 +25,14 @@ def script_to_json_dict(script):
 
 # Load environment - works both locally and on Streamlit Cloud
 load_dotenv()
-init_db()
+
+# Initialize database with error handling
+try:
+    init_db()
+except Exception as db_error:
+    st.error(f"⚠️ **Database Initialization Error**: {db_error}")
+    st.info("The app will continue with limited functionality. Some features may not work properly.")
+    st.stop()
 
 # Check for API key in Streamlit secrets or environment
 api_key = st.secrets.get("DEEPSEEK_API_KEY") if hasattr(st, 'secrets') and "DEEPSEEK_API_KEY" in st.secrets else os.getenv("DEEPSEEK_API_KEY")

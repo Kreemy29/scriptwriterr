@@ -6,8 +6,18 @@ from sqlmodel import SQLModel, create_engine, Session, select, delete
 from datetime import datetime
 
 # ---- Configure DB ----
-# For cloud deployment, ensure database persists in the correct location
-DB_URL = os.environ.get("DB_URL", "sqlite:///studio.db")
+# For cloud deployment, use in-memory database to avoid file system issues
+import streamlit as st
+
+# Check if running on Streamlit Cloud
+if hasattr(st, 'secrets') or os.environ.get('STREAMLIT_CLOUD'):
+    # Use in-memory database for Streamlit Cloud
+    DB_URL = "sqlite:///:memory:"
+    print("Using in-memory database for Streamlit Cloud deployment")
+else:
+    # Use file-based database for local development
+    DB_URL = os.environ.get("DB_URL", "sqlite:///studio.db")
+    print(f"Using database: {DB_URL}")
 
 # Cloud deployment optimizations
 engine_kwargs = {
@@ -32,7 +42,52 @@ from models import Script, Rating  # make sure Script has: is_reference: bool, p
 
 # ---- Init / Session ----
 def init_db() -> None:
-    SQLModel.metadata.create_all(engine)
+    """Initialize database"""
+    try:
+        SQLModel.metadata.create_all(engine)
+        print("Database initialized successfully")
+        
+        # For in-memory database (Streamlit Cloud), add some sample data
+        if DB_URL == "sqlite:///:memory:":
+            _add_sample_data()
+            
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        raise e  # Re-raise the error so the app can handle it
+
+def _add_sample_data():
+    """Add sample data for in-memory database"""
+    try:
+        from models import Script
+        with get_session() as session:
+            # Check if we already have data
+            existing = session.exec(select(Script)).first()
+            if existing:
+                return  # Data already exists
+                
+            # Add a few sample scripts for reference
+            sample_scripts = [
+                Script(
+                    title="Sample Workout Tease",
+                    hook="Watch my ass bounce during this 'workout'",
+                    beats=["Stretching in tight leggings", "Squats facing away from camera", "Wink at camera"],
+                    voiceover="",
+                    caption="Just a casual workout session 😉",
+                    hashtags=["#workout", "#fitness", "#tease"],
+                    cta="Follow for more workouts",
+                    creator="Sample",
+                    content_type="thirst-trap",
+                    persona="confident",
+                    is_reference=True
+                )
+            ]
+            
+            for script in sample_scripts:
+                session.add(script)
+            session.commit()
+            print("Sample data added successfully")
+    except Exception as e:
+        print(f"Error adding sample data: {e}")
 
 def clear_all_data() -> None:
     """Clear all data from the database"""
