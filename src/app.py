@@ -197,6 +197,13 @@ with st.sidebar:
             value=st.session_state.get('boundaries_text', "No explicit words; no solicitation; no age refs"),
             help="What should the AI avoid? Set your safety guidelines here"
         )
+        
+        # Spicy hooks toggle
+        spicy_hooks = st.toggle(
+            "🌶️ Spicy Hooks", 
+            value=True,
+            help="ON: Suggestive visual hooks (ass showing, camera shaking, tits bouncing). OFF: Traditional hooks"
+        )
     
     # Step 3: Advanced Options
     with st.expander("⚡ Step 3: Advanced Options", expanded=False):
@@ -354,7 +361,7 @@ with st.sidebar:
                     enhanced_boundaries += f"\n\nADVANCED GUIDANCE: {advanced_prompt}"
                 
                 # Generate scripts with enhanced RAG system
-                drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, persona, all_refs, n=n)
+                drafts = generate_scripts_rag(persona, enhanced_boundaries, content_type, persona, all_refs, n=n, spicy_hooks=spicy_hooks)
                 
                 progress_bar.progress(75)
                 status_text.text("📋 Scripts generated - awaiting approval...")

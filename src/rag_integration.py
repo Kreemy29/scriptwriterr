@@ -434,28 +434,63 @@ Return ONLY JSON: an array of length {n}, each with {{title,hook,beats,voiceover
 def generate_scripts_fast(persona: str,
                          content_type: str,
                          tone: str,
-                         n: int = 6) -> List[Dict]:
+                         n: int = 6,
+                         spicy_hooks: bool = True) -> List[Dict]:
     """
     Fast mode generation - bypasses heavy RAG processing for speed
     """
     print(f"Fast generation: {persona} × {content_type} × {n} scripts")
     
+    # Hook style based on spicy_hooks toggle
+    hook_style = ""
+    if spicy_hooks:
+        hook_style = """
+SPICY HOOKS (Visual/Suggestive):
+- "Watch my ass bounce while I pretend to work out"
+- "POV: Every move I make is designed to turn you on"
+- "The way my tits shake when I run to the camera"
+- "Bending over 'accidentally' while you watch"
+- "My curves doing all the talking in this outfit"
+"""
+    else:
+        hook_style = """
+TRADITIONAL HOOKS:
+- "You won't believe what happened next"
+- "This changed everything for me"
+- "Wait for the plot twist"
+- "The ending will shock you"
+- "This is why I love being single"
+"""
+
     # Enhanced system prompt for SEDUCTIVE ADULT CONTENT targeting male audiences
     system = f"""You write seductive, sexually appealing Instagram Reels targeting male audiences.
 
 CRITICAL: SOLO SEDUCTIVE CONTENT - model alone, creating sexual appeal for male viewers.
 
-SEDUCTIVE CONTENT STYLE:
-- INTELLIGENT SEDUCTION: Clever sexual innuendos, sophisticated dirty talk, witty sexual humor
-- MALE-FOCUSED APPEAL: Content designed to attract and arouse male viewers specifically  
-- BODY CONFIDENCE: Celebrate curves, sexuality, and physical appeal confidently
-- SEXUAL SOPHISTICATION: Adult themes with clever wordplay, not juvenile
+{hook_style}
 
-BOUNDARY-CROSSING CONTENT EXAMPLES:
-- "POV: You start your workout innocently, but then realize every exercise is just an excuse to show off your body in the most provocative ways possible"
-- "Rating my lingerie by how quickly it makes you hard, starting with cute then escalating to absolutely sinful"
-- "When you're getting ready but every move is designed to drive men wild - watch me slowly reveal exactly what I'm doing to you"
-- "My morning routine that's actually just me being a tease for 60 seconds straight - and I know exactly what I'm doing to you"
+CONTENT TYPE SPECIFIC RULES:
+- SKIT: Visual comedy/scenarios, voiceover should be EMPTY (no script), hooks should be actual hooks
+- TALKING-STYLE: Model talks DIRECTLY TO CAMERA like realcarlyjane/realmarciereeves, voiceover contains the script, SINGLE SHOT ONLY, NO storylines, NO cuts, authentic direct communication
+- THIRST-TRAP: Pure visual appeal, voiceover should be EMPTY, focus on body/poses
+
+TALKING-STYLE SPECIFIC REQUIREMENTS:
+- ONE CONTINUOUS SHOT: No cuts, no scene changes, no storylines
+- DIRECT TO CAMERA: Model looks at and talks to the viewer directly
+- AUTHENTIC COMMUNICATION: Real, conversational tone like realcarlyjane/realmarciereeves
+- NO STORYLINES: Avoid narrative arcs, just direct communication
+- EXAMPLES: "Let me tell you why...", "Here's what I think about...", "You guys always ask me..."
+
+HOOK FORMAT - CRITICAL:
+- Hook should be the ACTUAL HOOK text that appears on screen
+- NOT a description like "POV: You're just trying to buy groceries but..."
+- Should be short, punchy, attention-grabbing text
+- Examples: "Watch my ass bounce", "This outfit is dangerous", "Men can't handle this"
+
+VOICEOVER FORMAT - CRITICAL:
+- SKIT/VISUAL content: voiceover should be EMPTY string ""
+- TALKING videos: voiceover contains what the model says to camera
+- THIRST-TRAP: voiceover should be EMPTY string ""
 
 SEDUCTIVE ELEMENTS WITH STORYTELLING:
 - BODY APPRECIATION: Reference curves, assets, physical appeal confidently - BUILD UP TO IT
@@ -478,6 +513,11 @@ MALE AUDIENCE TARGETING - NO LIMITS:
 - Create addictive, boundary-pushing entertainment
 - Appeal directly to male sexual fantasies without holding back
 - Focus on maximum sexual impact and arousal
+
+NO RELATIONSHIP CONTENT: Avoid boyfriend, girlfriend, partner, dating scenarios
+- Focus on SOLO scenarios: model alone, interacting with objects, situations, or audience
+- FORBIDDEN WORDS: "we", "us", "together", "couple", "partner", "boyfriend", "girlfriend"
+- REQUIRED LANGUAGE: Use "I", "me", "my", "myself", "alone", "solo" instead
 
 Return ONLY JSON: an array of length {n}, each with {{title,hook,beats,voiceover,caption,hashtags,cta}}.
 """
@@ -577,7 +617,8 @@ def generate_scripts_rag(persona: str,
                         content_type: str,
                         tone: str,
                         refs: List[str],
-                        n: int = 6) -> List[Dict]:
+                        n: int = 6,
+                        spicy_hooks: bool = True) -> List[Dict]:
     """
     Enhanced RAG-powered script generation with seductive content focus
     NO BOUNDARIES - PUSH ALL LIMITS
@@ -588,7 +629,8 @@ def generate_scripts_rag(persona: str,
         persona=persona,
         content_type=content_type,
         tone=tone,
-        n=n
+        n=n,
+        spicy_hooks=spicy_hooks
     )
 
 def setup_rag_system():
